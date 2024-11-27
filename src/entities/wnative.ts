@@ -11,5 +11,12 @@ export const WNATIVE: { [chainId: number]: Token } = {
     18,
     'WETH',
     'Wrapped ETH'
+  ),
+  [ChainId.BotanixTestnet]: new Token(
+    ChainId.BotanixTestnet,
+    '0xcC255E6C96a41152b2E7FB50a7511FBE333c44e9',
+    18,
+    'WBTC',
+    'Wrapped BTC'
   )
 };
