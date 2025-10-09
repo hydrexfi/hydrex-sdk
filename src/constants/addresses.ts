@@ -1,7 +1,7 @@
 import { ChainId } from './chainIds';
 
 export const POOL_DEPLOYER_ADDRESSES = {
-  [ChainId.BaseSepolia]: '0x5471AAF4B2df55478a0B4043831d3276627D48D1',
+  [ChainId.BaseSepolia]: '0xA064Bcb79F27213b6e39dC4a2E3b977e97489BC9',
 };
 
 export const POOL_INIT_CODE_HASH = {
