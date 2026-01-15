@@ -14,4 +14,5 @@ export * from './NativeCurrency';
 export * from './Native';
 export * from './Fraction';
 export * from './ExtendedNative';
-export * from '../constants/wnative';
+export * from './BoostedToken';
+export * from './BoostedRoute';
