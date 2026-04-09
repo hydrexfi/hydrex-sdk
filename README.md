@@ -1,6 +1,6 @@
 # Hydrex SDK
 
-A TypeScript SDK for interacting with the Hydrex concentrated-liquidity AMM on Base Sepolia.
+A TypeScript SDK for interacting with the Hydrex concentrated-liquidity AMM on Base.
 
 ## Overview
 
@@ -22,9 +22,9 @@ yarn add @hydrex/sdk
 
 ## Supported Networks
 
-| Network      | Chain ID |
-|--------------|----------|
-| Base Sepolia | 84532    |
+| Network      | Chain ID | Status     | Pool Deployer                                |
+|--------------|----------|------------|----------------------------------------------|
+| Base         | 8453     | Mainnet    | `0x1595A5D101d69D2a2bAB2976839cC8eeEb13Ab94` |
 
 ## Quick Start
 
@@ -53,14 +53,14 @@ import {
 import { Token, ChainId } from '@hydrex/sdk';
 
 const USDC = new Token(
-  ChainId.BaseSepolia,
+  ChainId.Base,
   '0xYourUSDCAddress',
   6,
   'USDC',
   'USD Coin'
 );
 
-const WETH = WNATIVE[ChainId.BaseSepolia];
+const WETH = WNATIVE[ChainId.Base];
 ```
 
 ### Computing Pool Addresses
@@ -186,7 +186,7 @@ Hydrex supports ERC4626 vault-wrapped tokens as first-class entities for routing
 import { BoostedToken, BoostedRoute } from '@hydrex/sdk';
 
 const mwETH = new BoostedToken(
-  ChainId.BaseSepolia,
+  ChainId.Base,
   '0xYourVaultAddress',
   18,
   'mwETH',
@@ -219,12 +219,15 @@ import {
   DEFAULT_TICK_SPACING,
 } from '@hydrex/sdk';
 
-// Base Sepolia WETH
-const weth = WNATIVE[ChainId.BaseSepolia];
+// Base mainnet WETH (0x4200000000000000000000000000000000000006)
+const weth = WNATIVE[ChainId.Base];
 
-// Hydrex deployment constants — values populated once contracts are available
-const deployer = POOL_DEPLOYER_ADDRESSES[ChainId.BaseSepolia];
-const initCodeHash = POOL_INIT_CODE_HASH[ChainId.BaseSepolia];
+// Hydrex Base mainnet deployment
+const deployer = POOL_DEPLOYER_ADDRESSES[ChainId.Base];
+// => 0x1595A5D101d69D2a2bAB2976839cC8eeEb13Ab94
+
+const initCodeHash = POOL_INIT_CODE_HASH[ChainId.Base];
+// => 0xa18736c3ee97fe3c96c9428c0cc2a9116facec18e84f95f9da30543f8238a782
 ```
 
 ## Development
