@@ -11,7 +11,7 @@ import { Interface } from '@ethersproject/abi';
 import { PermitOptions, SelfPermit } from './selfPermit';
 import { ADDRESS_ZERO } from '../constants/constants';
 import { Pool } from '../entities';
-import { algebraPositionManagerABI } from "../abis/algebraPositionManager";
+import { hydrexPositionManagerABI } from "../abis/hydrexPositionManager";
 
 export const MaxUint128 = toHex(
   JSBI.subtract(
@@ -157,7 +157,7 @@ export interface RemoveLiquidityOptions {
 
 export abstract class NonfungiblePositionManager extends SelfPermit {
   public static INTERFACE: Interface = new Interface(
-    algebraPositionManagerABI,
+    hydrexPositionManagerABI,
   );
 
   /**

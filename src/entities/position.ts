@@ -20,7 +20,7 @@ interface PositionConstructorArgs {
 }
 
 /**
- * Represents a position on a Algebra Pool
+ * Represents a position on a Hydrex Pool
  */
 export class Position {
   public readonly pool: Pool;

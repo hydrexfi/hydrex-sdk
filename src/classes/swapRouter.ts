@@ -9,7 +9,7 @@ import { ADDRESS_ZERO } from '../constants/constants';
 import { PermitOptions, SelfPermit } from './selfPermit';
 import { encodeRouteToPath } from '../utils';
 import { MethodParameters, toHex } from '../utils/calldata';
-import { algebraSwapRouterABI } from "../abis/algebraSwapRouter";
+import { hydrexSwapRouterABI } from "../abis/hydrexSwapRouter";
 
 export interface FeeOptions {
   /**
@@ -67,7 +67,7 @@ export interface SwapOptions {
  * Represents the SwapRouter, and has static methods for helping execute trades.
  */
 export abstract class SwapRouter extends SelfPermit {
-  public static INTERFACE: Interface = new Interface(algebraSwapRouterABI);
+  public static INTERFACE: Interface = new Interface(hydrexSwapRouterABI);
 
   /**
    * Cannot be constructed.

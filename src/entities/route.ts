@@ -38,7 +38,8 @@ export class Route<TInput extends Currency, TOutput extends Currency> {
      * Normalizes token0-token1 order and selects the next token/fee step to add to the path
      * */
     const tokenPath: AnyToken[] = [wrappedInput];
-    for (const [i, pool] of pools.entries()) {
+    for (let i = 0; i < pools.length; i++) {
+      const pool = pools[i];
       const currentInputToken = tokenPath[i];
       invariant(
         currentInputToken.equals(pool.token0) ||
