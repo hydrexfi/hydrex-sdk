@@ -1,1 +1,1 @@
-# Algebra Integral SDK
+# Hydrex SDK
