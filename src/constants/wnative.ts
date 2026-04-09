@@ -5,11 +5,6 @@ import { Token } from '../entities/Token';
  * Known WETH implementation addresses, used in our implementation of Ether#wrapped
  */
 export const WNATIVE: { [chainId: number]: Token } = {
-  [ChainId.BaseSepolia]: new Token(
-    ChainId.BaseSepolia,
-    '0x4200000000000000000000000000000000000006',
-    18,
-    'WETH',
-    'Wrapped ETH'
-  ),
+  [ChainId.BaseSepolia]: new Token(ChainId.BaseSepolia, '0x4200000000000000000000000000000000000006', 18, 'WETH', 'Wrapped ETH'),
+  [ChainId.Base]: new Token(ChainId.Base, '0x4200000000000000000000000000000000000006', 18, 'WETH', 'Wrapped ETH'),
 };
