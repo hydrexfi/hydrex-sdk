@@ -31,7 +31,7 @@
     "singleQuote": true,
     "trailingComma": "es5"
   },
-  "name": "@cryptoalgebra/hydrex-sdk",
+  "name": "@cooperalma/hydrex-sdk",
   "author": "Hydrex",
   "module": "dist/hydrex-sdk.esm.js",
   "dependencies": {
@@ -41,7 +41,7 @@
     "@ethersproject/units": "^5.7.0",
     "big.js": "^6.2.1",
     "decimal.js-light": "^2.5.1",
-    "jsbi": "^3.2.5",
+    "jsbi": "^4.3.0",
     "numeral": "^2.0.6",
     "tiny-invariant": "^1.3.1",
     "tiny-warning": "^1.0.3",
