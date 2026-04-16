@@ -93,6 +93,11 @@ export abstract class Voter {
     };
   }
 
+  /**
+   * Returns the number of pools the given voter address currently has saved votes for.
+   * @param owner voter address to inspect
+   * @param readContract injected contract read function
+   */
   public static async getPoolVoteLength(
     owner: string,
     readContract: ReadContractFunction,
@@ -105,6 +110,11 @@ export abstract class Voter {
     );
   }
 
+  /**
+   * Returns the timestamp of the voter's most recent vote action.
+   * @param owner voter address to inspect
+   * @param readContract injected contract read function
+   */
   public static async getLastVoted(
     owner: string,
     readContract: ReadContractFunction,
@@ -117,6 +127,12 @@ export abstract class Voter {
     );
   }
 
+  /**
+   * Returns the pool address at a specific saved vote index for a voter.
+   * @param owner voter address to inspect
+   * @param index zero-based index into the voter's saved pool votes
+   * @param readContract injected contract read function
+   */
   public static async getPoolVote(
     owner: string,
     index: BigintIsh,
@@ -132,6 +148,12 @@ export abstract class Voter {
     );
   }
 
+  /**
+   * Returns the current vote weight the voter has assigned to a specific pool.
+   * @param owner voter address to inspect
+   * @param poolAddress pool address to inspect
+   * @param readContract injected contract read function
+   */
   public static async getVotes(
     owner: string,
     poolAddress: string,
@@ -148,6 +170,10 @@ export abstract class Voter {
     );
   }
 
+  /**
+   * Returns the total voting weight across all pools for the current epoch.
+   * @param readContract injected contract read function
+   */
   public static async getTotalWeight(
     readContract: ReadContractFunction,
   ): Promise<bigint> {
@@ -158,6 +184,11 @@ export abstract class Voter {
     );
   }
 
+  /**
+   * Returns the current epoch voting weight assigned to a specific pool.
+   * @param poolAddress pool address to inspect
+   * @param readContract injected contract read function
+   */
   public static async getWeight(
     poolAddress: string,
     readContract: ReadContractFunction,
@@ -170,6 +201,12 @@ export abstract class Voter {
     );
   }
 
+  /**
+   * Reads the raw epoch values from the voter contract and derives the current
+   * epoch details.
+   * @param readContracts injected batch contract read function
+   * @param options optional inputs used to derive additional epoch metadata
+   */
   public static async getEpochDetails(
     readContracts: ReadContractsFunction,
     options: GetEpochDetailsOptions = {},
@@ -182,6 +219,12 @@ export abstract class Voter {
     return buildEpochDetails(epochDurationResult, epochTimestampResult, options);
   }
 
+  /**
+   * Returns the voter's current vote split by pool as percentages of their
+   * saved vote allocation. If no owner is provided, an empty result is returned.
+   * @param owner voter address to inspect
+   * @param readContracts injected batch contract read function
+   */
   public static async getUserVotePercents(
     owner: string | undefined,
     readContracts: ReadContractsFunction,
@@ -256,6 +299,10 @@ export abstract class Voter {
     };
   }
 
+  /**
+   * Returns a small summary of the current voting state.
+   * @param readContract injected contract read function
+   */
   public static async getVoteStats(
     readContract: ReadContractFunction,
   ): Promise<VoteStats> {
@@ -264,6 +311,12 @@ export abstract class Voter {
     };
   }
 
+  /**
+   * Returns the current epoch weight for each provided pool as an
+   * address-to-weight map.
+   * @param poolAddresses pool addresses to inspect
+   * @param readContracts injected batch contract read function
+   */
   public static async getPoolWeights(
     poolAddresses: string[],
     readContracts: ReadContractsFunction,
@@ -288,6 +341,12 @@ export abstract class Voter {
     return poolWeights;
   }
 
+  /**
+   * Returns true if the provided last-voted timestamp falls within the current
+   * epoch.
+   * @param epochDetails derived epoch details for the current epoch
+   * @param lastVotedTimestamp optional last-voted timestamp to compare
+   */
   public static hasVotedForEpoch(
     epochDetails: EpochDetails,
     lastVotedTimestamp?: BigintIsh,
