@@ -19,3 +19,7 @@ export const SWAP_ROUTER_ADDRESSES: { [chainId: number]: string } = {
   [ChainId.BaseSepolia]: '0x10Dcb20d06fbC1461D21D6b31E54042D656C67FC',
   [ChainId.Base]: '0x6f4bE24d7dC93b6ffcBAb3Fd0747c5817Cea3F9e',
 };
+
+export const VOTER_ADDRESSES: { [chainId: number]: string } = {
+  [ChainId.Base]: '0xc69E3eF39E3fFBcE2A1c570f8d3ADF76909ef17b',
+};
