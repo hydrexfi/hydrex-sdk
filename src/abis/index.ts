@@ -1,4 +1,6 @@
 export * from './hydrexPositionManager';
 export * from './hydrexSwapRouter';
+export * from './ichiVault';
+export * from './ichiVaultDepositGuard';
 export * from './selfPermit';
 export * from './voter';

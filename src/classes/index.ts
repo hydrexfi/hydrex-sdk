@@ -1,3 +1,5 @@
+export * from './ichiVault';
+export * from './ichiVaultDepositGuard';
 export * from './nonfungiblePositionManager';
 export * from './swapRouter';
 export * from './selfPermit';
