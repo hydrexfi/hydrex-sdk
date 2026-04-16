@@ -275,10 +275,10 @@ export abstract class Voter {
         args: [normalizedOwner, poolAddress],
       })),
     );
-    const weights = voteResults.map(toBigInt);
-    const total = weights.reduce((sum, weight) => sum + weight, 0n);
+    const weights = voteResults.map(r => toBigInt(r ?? 0));
+    const total = weights.reduce((sum, weight) => sum + weight, BigInt(0));
 
-    if (total <= 0n) {
+    if (total <= BigInt(0)) {
       return {
         owner: normalizedOwner,
         byPool: {},
