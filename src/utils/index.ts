@@ -1,7 +1,9 @@
 export * from './calldata';
+export * from './buildEpochDetails';
 export * from './computePoolAddress';
 export * from './encodeRouteToPath';
 export * from './encodeSqrtRatioX96';
+export * from './format';
 export * from './fullMath';
 export * from './isSorted';
 export * from './liquidityMath';
@@ -13,3 +15,4 @@ export * from './sqrtPriceMath';
 export * from './tickMath';
 export * from './tickList';
 export * from './getTickToPrice';
+export * from './toBigInt';
