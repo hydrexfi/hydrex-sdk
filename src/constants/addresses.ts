@@ -23,3 +23,11 @@ export const SWAP_ROUTER_ADDRESSES: { [chainId: number]: string } = {
 export const VOTER_ADDRESSES: { [chainId: number]: string } = {
   [ChainId.Base]: '0xc69E3eF39E3fFBcE2A1c570f8d3ADF76909ef17b',
 };
+
+export const ICHI_VAULT_DEPOSIT_GUARD_ADDRESSES: { [chainId: number]: string } = {
+  [ChainId.Base]: '0x9A0EBEc47c85fD30F1fdc90F57d2b178e84DC8d8',
+};
+
+export const ICHI_VAULT_DEPLOYER_ADDRESSES: { [chainId: number]: string } = {
+  [ChainId.Base]: '0x7d11De61c219b70428Bb3199F0DD88bA9E76bfEE',
+};
