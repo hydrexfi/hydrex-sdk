@@ -27,9 +27,6 @@ export interface VoteOptions {
 export abstract class Voter {
   public static INTERFACE: Interface = new Interface(voterABI);
 
-  /**
-   * Cannot be constructed.
-   */
   private constructor() {}
 
   /**
@@ -41,6 +38,7 @@ export abstract class Voter {
    * @param options pools and vote split to encode
    */
   public static voteCallParameters(options: VoteOptions): MethodParameters {
+    invariant(options.pools.length > 0, 'EMPTY_VOTE');
     invariant(options.pools.length === options.weights.length, 'LENGTH_MISMATCH');
 
     const pools = options.pools.map(pool => validateAndParseAddress(pool));
