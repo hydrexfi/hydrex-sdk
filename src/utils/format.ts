@@ -224,3 +224,34 @@ export function formatDateAgo(date: Date) {
   return `${Math.floor(secondsAgo / 31536000)} Year${secondsAgo / 63072000 >= 1 ? 's' : ''
     } Ago`;
 }
+
+export function formatTimeUntilEpochFlip(seconds: bigint): string {
+  const totalSeconds = Number(seconds);
+
+  if (totalSeconds <= 0) {
+    return 'Epoch ended, automations starting';
+  }
+
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const secs = totalSeconds % 60;
+
+  if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+  if (hours > 0) return `${hours}h ${minutes}m ${secs}s`;
+  if (minutes > 0) return `${minutes}m ${secs}s`;
+
+  return `${secs}s`;
+}
+
+export function formatEpochDuration(seconds: bigint): string {
+  const totalSeconds = Number(seconds);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+
+  if (days > 0) {
+    return `${days} day${days > 1 ? 's' : ''}`;
+  }
+
+  return `${hours} hour${hours > 1 ? 's' : ''}`;
+}

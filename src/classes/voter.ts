@@ -2,7 +2,14 @@ import { Interface } from '@ethersproject/abi';
 import invariant from 'tiny-invariant';
 import { voterABI } from '../abis/voter';
 import { BigintIsh } from '../types/BigIntish';
+import {
+  ReadContractFunction,
+  ReadContractsFunction,
+} from '../types/contractReads';
+import { EpochDetails, GetEpochDetailsOptions } from '../types/epoch';
+import { buildEpochDetails } from '../utils/buildEpochDetails';
 import { MethodParameters, toHex } from '../utils/calldata';
+import { toBigInt } from '../utils/toBigInt';
 import { validateAndParseAddress } from '../utils/validateAndParseAddress';
 
 export interface VoteOptions {
@@ -18,6 +25,20 @@ export interface VoteOptions {
    * voting power across the selected pools.
    */
   weights: BigintIsh[];
+}
+
+export interface UserVotePercents {
+  owner: string;
+  byPool: Record<string, string>;
+  lastVotedTimestamp?: bigint;
+}
+
+export interface VoteStats {
+  totalWeight: bigint;
+}
+
+export interface PoolWeights {
+  [poolAddress: string]: bigint;
 }
 
 /**
@@ -70,5 +91,211 @@ export abstract class Voter {
       calldata: Voter.INTERFACE.encodeFunctionData('reset'),
       value: toHex(0),
     };
+  }
+
+  public static async getPoolVoteLength(
+    owner: string,
+    readContract: ReadContractFunction,
+  ): Promise<bigint> {
+    return toBigInt(
+      await readContract({
+        functionName: 'poolVoteLength',
+        args: [validateAndParseAddress(owner)],
+      }),
+    );
+  }
+
+  public static async getLastVoted(
+    owner: string,
+    readContract: ReadContractFunction,
+  ): Promise<bigint> {
+    return toBigInt(
+      await readContract({
+        functionName: 'lastVoted',
+        args: [validateAndParseAddress(owner)],
+      }),
+    );
+  }
+
+  public static async getPoolVote(
+    owner: string,
+    index: BigintIsh,
+    readContract: ReadContractFunction,
+  ): Promise<string> {
+    return validateAndParseAddress(
+      String(
+        await readContract({
+          functionName: 'poolVote',
+          args: [validateAndParseAddress(owner), toBigInt(index)],
+        }),
+      ),
+    );
+  }
+
+  public static async getVotes(
+    owner: string,
+    poolAddress: string,
+    readContract: ReadContractFunction,
+  ): Promise<bigint> {
+    return toBigInt(
+      await readContract({
+        functionName: 'votes',
+        args: [
+          validateAndParseAddress(owner),
+          validateAndParseAddress(poolAddress),
+        ],
+      }),
+    );
+  }
+
+  public static async getTotalWeight(
+    readContract: ReadContractFunction,
+  ): Promise<bigint> {
+    return toBigInt(
+      await readContract({
+        functionName: 'totalWeight',
+      }),
+    );
+  }
+
+  public static async getWeight(
+    poolAddress: string,
+    readContract: ReadContractFunction,
+  ): Promise<bigint> {
+    return toBigInt(
+      await readContract({
+        functionName: 'weights',
+        args: [validateAndParseAddress(poolAddress)],
+      }),
+    );
+  }
+
+  public static async getEpochDetails(
+    readContracts: ReadContractsFunction,
+    options: GetEpochDetailsOptions = {},
+  ): Promise<EpochDetails> {
+    const [epochDurationResult, epochTimestampResult] = await readContracts([
+      { functionName: 'getEpochDuration' },
+      { functionName: '_epochTimestamp' },
+    ]);
+
+    return buildEpochDetails(epochDurationResult, epochTimestampResult, options);
+  }
+
+  public static async getUserVotePercents(
+    owner: string | undefined,
+    readContracts: ReadContractsFunction,
+  ): Promise<UserVotePercents> {
+    if (!owner) {
+      return {
+        owner: '',
+        byPool: {},
+      };
+    }
+
+    const normalizedOwner = validateAndParseAddress(owner);
+    const [lengthResult, lastVotedResult] = await readContracts([
+      {
+        functionName: 'poolVoteLength',
+        args: [normalizedOwner],
+      },
+      {
+        functionName: 'lastVoted',
+        args: [normalizedOwner],
+      },
+    ]);
+
+    const count = Number(toBigInt(lengthResult));
+    const lastVotedTimestamp = toBigInt(lastVotedResult);
+
+    if (count === 0) {
+      return {
+        owner: normalizedOwner,
+        byPool: {},
+        lastVotedTimestamp,
+      };
+    }
+
+    const poolResults = await readContracts(
+      Array.from({ length: count }, (_, index) => ({
+        functionName: 'poolVote',
+        args: [normalizedOwner, BigInt(index)],
+      })),
+    );
+
+    const pools = poolResults.map(result =>
+      validateAndParseAddress(String(result)),
+    );
+    const voteResults = await readContracts(
+      pools.map(poolAddress => ({
+        functionName: 'votes',
+        args: [normalizedOwner, poolAddress],
+      })),
+    );
+    const weights = voteResults.map(toBigInt);
+    const total = weights.reduce((sum, weight) => sum + Number(weight), 0);
+
+    if (total <= 0) {
+      return {
+        owner: normalizedOwner,
+        byPool: {},
+        lastVotedTimestamp,
+      };
+    }
+
+    const byPool: Record<string, string> = {};
+    pools.forEach((poolAddress, index) => {
+      const percent = (Number(weights[index]) / total) * 100;
+      byPool[poolAddress] = String(Math.round(percent * 100) / 100);
+    });
+
+    return {
+      owner: normalizedOwner,
+      byPool,
+      lastVotedTimestamp,
+    };
+  }
+
+  public static async getVoteStats(
+    readContract: ReadContractFunction,
+  ): Promise<VoteStats> {
+    return {
+      totalWeight: await this.getTotalWeight(readContract),
+    };
+  }
+
+  public static async getPoolWeights(
+    poolAddresses: string[],
+    readContracts: ReadContractsFunction,
+  ): Promise<PoolWeights> {
+    if (poolAddresses.length === 0) {
+      return {};
+    }
+
+    const normalizedPoolAddresses = poolAddresses.map(validateAndParseAddress);
+    const results = await readContracts(
+      normalizedPoolAddresses.map(poolAddress => ({
+        functionName: 'weights',
+        args: [poolAddress],
+      })),
+    );
+
+    const poolWeights: PoolWeights = {};
+    normalizedPoolAddresses.forEach((poolAddress, index) => {
+      poolWeights[poolAddress] = toBigInt(results[index] ?? 0);
+    });
+
+    return poolWeights;
+  }
+
+  public static hasVotedForEpoch(
+    epochDetails: EpochDetails,
+    lastVotedTimestamp?: BigintIsh,
+  ): boolean {
+    if (lastVotedTimestamp === undefined) {
+      return false;
+    }
+
+    return toBigInt(lastVotedTimestamp) >= epochDetails.epochStart;
   }
 }
