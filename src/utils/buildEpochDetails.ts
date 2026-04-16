@@ -16,7 +16,8 @@ export function buildEpochDetails(
   const epochStart =
     normalizedEpochTimestamp - (normalizedEpochTimestamp % normalizedEpochDuration);
   const nextEpochStart = epochStart + normalizedEpochDuration;
-  const timeUntilEpochFlip = nextEpochStart - currentTimestamp;
+  const timeUntilEpochFlip =
+    nextEpochStart > currentTimestamp ? nextEpochStart - currentTimestamp : 0n;
   const currentEpoch =
     options.firstEpochStart !== undefined
       ? Number(

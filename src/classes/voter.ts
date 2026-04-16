@@ -276,9 +276,9 @@ export abstract class Voter {
       })),
     );
     const weights = voteResults.map(toBigInt);
-    const total = weights.reduce((sum, weight) => sum + Number(weight), 0);
+    const total = weights.reduce((sum, weight) => sum + weight, 0n);
 
-    if (total <= 0) {
+    if (total <= 0n) {
       return {
         owner: normalizedOwner,
         byPool: {},
@@ -288,7 +288,7 @@ export abstract class Voter {
 
     const byPool: Record<string, string> = {};
     pools.forEach((poolAddress, index) => {
-      const percent = (Number(weights[index]) / total) * 100;
+      const percent = (Number(weights[index]) / Number(total)) * 100;
       byPool[poolAddress] = String(Math.round(percent * 100) / 100);
     });
 
