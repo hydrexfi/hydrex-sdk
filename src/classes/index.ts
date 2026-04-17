@@ -4,3 +4,5 @@ export * from './nonfungiblePositionManager';
 export * from './swapRouter';
 export * from './selfPermit';
 export * from './voter';
+export * from './veNFTClaims';
+export * from './veNFTLens';
