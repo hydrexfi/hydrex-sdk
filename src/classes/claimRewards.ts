@@ -203,22 +203,15 @@ export abstract class ClaimRewards {
       return [];
     }
 
-    const gaugesWithRewardTokens = gauges
-      .filter(
-        (
-          gauge,
-        ): gauge is GaugeRewardReadInput & { rewardTokenAddress: string } =>
-          Boolean(gauge.rewardTokenAddress),
-      )
-      .map((gauge) => ({
+    const gaugesWithRewardTokens = gauges.map((gauge) => {
+      invariant(gauge.rewardTokenAddress, 'MISSING_REWARD_TOKEN');
+
+      return {
         gaugeAddress: validateAndParseAddress(gauge.gaugeAddress),
         readContract: gauge.readContract,
         rewardTokenAddress: validateAndParseAddress(gauge.rewardTokenAddress),
-      }));
-
-    if (gaugesWithRewardTokens.length === 0) {
-      return [];
-    }
+      };
+    });
 
     const claims = new Map<string, Set<string>>();
 
