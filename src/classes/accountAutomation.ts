@@ -80,9 +80,12 @@ export abstract class AccountAutomation {
   /**
    * Builds calldata to grant or revoke ERC721 operator approval for all veNFTs.
    *
-   * Some automation strategies need operator approval in addition to conduit
-   * approval, which is why this helper is exposed separately. The returned
-   * calldata must be sent to the veToken contract.
+   * Call this alongside setConduitApprovalCallParameters only for veMaxi
+   * conduits. Those conduits re-lock rewards as a new veNFT, so they need both
+   * conduit approval and ERC721 operator approval.
+   *
+   * All other conduit strategies only need setConduitApprovalCallParameters.
+   * The returned calldata must be sent to the veToken contract.
    *
    * @param options operator address and approval toggle
    */
