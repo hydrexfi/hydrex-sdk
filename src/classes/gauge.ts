@@ -81,11 +81,14 @@ export abstract class Gauge {
   public static getRewardCallParameters(user?: string, tokens?: string[]): MethodParameters {
     let calldata: string;
     if (!user) {
-      calldata = Gauge.INTERFACE.encodeFunctionData('getReward', []);
+      // Use full signature to disambiguate from overloads (ethers.js v5 requirement)
+      calldata = Gauge.INTERFACE.encodeFunctionData('getReward()', []);
     } else if (!tokens) {
-      calldata = Gauge.INTERFACE.encodeFunctionData('getReward', [validateAndParseAddress(user)]);
+      calldata = Gauge.INTERFACE.encodeFunctionData('getReward(address)', [
+        validateAndParseAddress(user),
+      ]);
     } else {
-      calldata = Gauge.INTERFACE.encodeFunctionData('getReward', [
+      calldata = Gauge.INTERFACE.encodeFunctionData('getReward(address,address[])', [
         validateAndParseAddress(user),
         tokens.map(validateAndParseAddress),
       ]);
