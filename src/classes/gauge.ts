@@ -57,6 +57,19 @@ export abstract class Gauge {
   }
 
   /**
+   * Encodes a withdrawAll() call — unstakes everything without claiming rewards.
+   * Use this for non-lending strategies (Ichi, Gamma) where the caller handles
+   * reward claiming separately. For a combined exit that also harvests rewards
+   * in one transaction, use withdrawAllAndHarvestCallParameters() instead.
+   */
+  public static withdrawAllCallParameters(): MethodParameters {
+    return {
+      calldata: Gauge.INTERFACE.encodeFunctionData('withdrawAll', []),
+      value: toHex(0),
+    };
+  }
+
+  /**
    * Encodes a withdrawAllAndHarvest() call — unstakes everything and claims
    * all pending rewards in a single transaction.
    */
@@ -177,5 +190,32 @@ export abstract class Gauge {
    */
   public static async getStakeToken(readContract: ReadContractFunction): Promise<string> {
     return validateAndParseAddress(String(await readContract({ functionName: 'stakeToken' })));
+  }
+
+  /**
+   * Returns the primary reward token distributed by this gauge.
+   * @param readContract function bound to the gauge address
+   */
+  public static async getRewardToken(readContract: ReadContractFunction): Promise<string> {
+    return validateAndParseAddress(String(await readContract({ functionName: 'rewardToken' })));
+  }
+
+  /**
+   * Returns true if the given token is a recognized reward token on this gauge.
+   * Use this before calling getRewardCallParameters(user, tokens) to validate
+   * that each token address in the list is claimable.
+   * @param token token address to check
+   * @param readContract function bound to the gauge address
+   */
+  public static async isRewardToken(
+    token: string,
+    readContract: ReadContractFunction,
+  ): Promise<boolean> {
+    return Boolean(
+      await readContract({
+        functionName: 'isReward',
+        args: [validateAndParseAddress(token)],
+      }),
+    );
   }
 }

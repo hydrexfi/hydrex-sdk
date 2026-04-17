@@ -2,6 +2,13 @@ export const gaugeABI = [
   // ── reads ─────────────────────────────────────────────────────────────
   {
     type: 'function',
+    name: 'isReward',
+    inputs: [{ name: 'token', type: 'address' }],
+    outputs: [{ name: '', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     name: 'balanceOf',
     inputs: [{ name: 'account', type: 'address' }],
     outputs: [{ name: '', type: 'uint256' }],
@@ -36,6 +43,13 @@ export const gaugeABI = [
       { name: 'rewardAddress', type: 'address' },
     ],
     outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'rewardToken',
+    inputs: [],
+    outputs: [{ name: '', type: 'address' }],
     stateMutability: 'view',
   },
   {
