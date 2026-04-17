@@ -7,7 +7,7 @@ import { MethodParameters, toHex } from '../utils/calldata';
 import { validateAndParseAddress } from '../utils/validateAndParseAddress';
 
 export interface AutomationApprovalState {
-  hasClaimRedirectApproval: boolean;
+  hasClaimApproval: boolean;
   hasNftApproval: boolean;
   isFullyAutomated: boolean;
 }
@@ -95,7 +95,7 @@ export abstract class AccountAutomation {
   /**
    * Reads the current automation approval state for an owner and conduit.
    *
-   * This checks both claim-redirect approval and ERC721 operator approval on
+   * This checks both claim approval and ERC721 operator approval on
    * veToken, then returns a small combined status object partners can show
    * directly in their automation UI.
    *
@@ -122,13 +122,13 @@ export abstract class AccountAutomation {
       },
     ]);
 
-    const hasClaimRedirectApproval = Boolean(claimRedirectApproval);
+    const hasClaimApproval = Boolean(claimRedirectApproval);
     const hasNftApproval = Boolean(nftApproval);
 
     return {
-      hasClaimRedirectApproval,
+      hasClaimApproval,
       hasNftApproval,
-      isFullyAutomated: hasClaimRedirectApproval && hasNftApproval,
+      isFullyAutomated: hasClaimApproval && hasNftApproval,
     };
   }
 
