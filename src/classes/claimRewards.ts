@@ -117,11 +117,9 @@ export abstract class ClaimRewards {
         }),
       );
     } catch (error) {
-      if (ClaimRewards.isUnsupportedEarnedSignatureError(error)) {
-        return BigInt(0);
-      }
-
-      throw error;
+      throw new Error(
+        `Failed to read earned() from gauge: ${ClaimRewards.getErrorMessage(error)}`,
+      );
     }
   }
 
@@ -134,8 +132,7 @@ export abstract class ClaimRewards {
    * caller.
    */
   private static isUnsupportedEarnedSignatureError(error: unknown): boolean {
-    const message =
-      error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+    const message = ClaimRewards.getErrorMessage(error).toLowerCase();
 
     return (
       message.includes('no matching fragment') ||
@@ -145,6 +142,10 @@ export abstract class ClaimRewards {
       message.includes('returned no data') ||
       message.includes('could not decode result data')
     );
+  }
+
+  private static getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
   }
 
   /**
