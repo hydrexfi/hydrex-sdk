@@ -16,3 +16,4 @@ export * from './Fraction';
 export * from './ExtendedNative';
 export * from './BoostedToken';
 export * from './BoostedRoute';
+export * from './LendingGauge';
