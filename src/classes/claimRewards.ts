@@ -133,22 +133,24 @@ export abstract class ClaimRewards {
       return [];
     }
 
-    const claimableGaugeAddresses = new Set<string>();
+    const normalizedGauges = gauges.map((gauge) => ({
+      gaugeAddress: validateAndParseAddress(gauge.gaugeAddress),
+      readContract: gauge.readContract,
+      rewardTokenAddress: gauge.rewardTokenAddress,
+    }));
+    const pendingRewards = await Promise.all(
+      normalizedGauges.map((gauge) =>
+        ClaimRewards.getPendingReward(
+          userAddress,
+          gauge.readContract,
+          gauge.rewardTokenAddress,
+        ),
+      ),
+    );
 
-    for (const gauge of gauges) {
-      const gaugeAddress = validateAndParseAddress(gauge.gaugeAddress);
-      const pendingReward = await ClaimRewards.getPendingReward(
-        userAddress,
-        gauge.readContract,
-        gauge.rewardTokenAddress,
-      );
-
-      if (pendingReward > BigInt(0)) {
-        claimableGaugeAddresses.add(gaugeAddress);
-      }
-    }
-
-    return Array.from(claimableGaugeAddresses);
+    return normalizedGauges
+      .filter((_, index) => pendingRewards[index] > BigInt(0))
+      .map((gauge) => gauge.gaugeAddress);
   }
 
   /**
@@ -169,27 +171,41 @@ export abstract class ClaimRewards {
       return [];
     }
 
+    const gaugesWithRewardTokens = gauges
+      .filter(
+        (
+          gauge,
+        ): gauge is GaugeRewardReadInput & { rewardTokenAddress: string } =>
+          Boolean(gauge.rewardTokenAddress),
+      )
+      .map((gauge) => ({
+        gaugeAddress: validateAndParseAddress(gauge.gaugeAddress),
+        readContract: gauge.readContract,
+        rewardTokenAddress: validateAndParseAddress(gauge.rewardTokenAddress),
+      }));
+
+    if (gaugesWithRewardTokens.length === 0) {
+      return [];
+    }
+
     const claims = new Map<string, Set<string>>();
 
-    for (const gauge of gauges) {
-      if (!gauge.rewardTokenAddress) {
-        continue;
-      }
+    const pendingRewards = await Promise.all(
+      gaugesWithRewardTokens.map((gauge) =>
+        ClaimRewards.getPendingReward(
+          userAddress,
+          gauge.readContract,
+          gauge.rewardTokenAddress,
+        ),
+      ),
+    );
 
-      const gaugeAddress = validateAndParseAddress(gauge.gaugeAddress);
-      const rewardTokenAddress = validateAndParseAddress(
-        gauge.rewardTokenAddress,
-      );
-      const pendingReward = await ClaimRewards.getPendingReward(
-        userAddress,
-        gauge.readContract,
-        rewardTokenAddress,
-      );
-
+    for (const [index, pendingReward] of pendingRewards.entries()) {
       if (pendingReward <= BigInt(0)) {
         continue;
       }
 
+      const { gaugeAddress, rewardTokenAddress } = gaugesWithRewardTokens[index];
       const existingTokens = claims.get(gaugeAddress);
       if (existingTokens) {
         existingTokens.add(rewardTokenAddress);
