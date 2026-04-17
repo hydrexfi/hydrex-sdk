@@ -89,6 +89,9 @@ export abstract class ClaimRewards {
     rewardTokenAddress?: string,
   ): Promise<bigint> {
     const normalizedUserAddress = validateAndParseAddress(userAddress);
+    const normalizedRewardTokenAddress = rewardTokenAddress
+      ? validateAndParseAddress(rewardTokenAddress)
+      : undefined;
 
     try {
       return toBigInt(
@@ -97,23 +100,51 @@ export abstract class ClaimRewards {
           args: [normalizedUserAddress],
         }),
       );
-    } catch (_) {}
-
-    if (rewardTokenAddress) {
-      try {
-        return toBigInt(
-          await readContract({
-            functionName: 'earned',
-            args: [
-              normalizedUserAddress,
-              validateAndParseAddress(rewardTokenAddress),
-            ],
-          }),
-        );
-      } catch (_) {}
+    } catch (error) {
+      if (
+        !normalizedRewardTokenAddress ||
+        !ClaimRewards.isUnsupportedEarnedSignatureError(error)
+      ) {
+        throw error;
+      }
     }
 
-    return BigInt(0);
+    try {
+      return toBigInt(
+        await readContract({
+          functionName: 'earned',
+          args: [normalizedUserAddress, normalizedRewardTokenAddress],
+        }),
+      );
+    } catch (error) {
+      if (ClaimRewards.isUnsupportedEarnedSignatureError(error)) {
+        return BigInt(0);
+      }
+
+      throw error;
+    }
+  }
+
+  /**
+   * The gauge read surface is not perfectly uniform. Some gauges expose
+   * earned(account), while others require earned(account, rewardToken).
+   *
+   * Only signature/ABI-style failures should fall through to the alternate
+   * read shape. Unexpected RPC or execution errors should still surface to the
+   * caller.
+   */
+  private static isUnsupportedEarnedSignatureError(error: unknown): boolean {
+    const message =
+      error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+
+    return (
+      message.includes('no matching fragment') ||
+      message.includes('function selector was not recognized') ||
+      message.includes('function does not exist') ||
+      message.includes('does not have the function') ||
+      message.includes('returned no data') ||
+      message.includes('could not decode result data')
+    );
   }
 
   /**
