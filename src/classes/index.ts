@@ -1,3 +1,4 @@
+export * from './gauge';
 export * from './ichiVault';
 export * from './ichiVaultDepositGuard';
 export * from './nonfungiblePositionManager';

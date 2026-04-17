@@ -1,3 +1,4 @@
+export * from './gauge';
 export * from './hydrexPositionManager';
 export * from './hydrexSwapRouter';
 export * from './ichiVault';
