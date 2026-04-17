@@ -3,4 +3,5 @@ export * from './hydrexSwapRouter';
 export * from './ichiVault';
 export * from './ichiVaultDepositGuard';
 export * from './selfPermit';
+export * from './veTokenLens';
 export * from './voter';
