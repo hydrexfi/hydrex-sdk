@@ -2,6 +2,7 @@ export * from './gauge';
 export * from './accountAutomation';
 export * from './ichiVault';
 export * from './ichiVaultDepositGuard';
+export * from './claimRewards';
 export * from './nonfungiblePositionManager';
 export * from './swapRouter';
 export * from './selfPermit';
