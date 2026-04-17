@@ -13,6 +13,14 @@ export interface AutomationApprovalState {
 }
 
 export interface SetConduitApprovalOptions {
+  /**
+   * What should this permission apply to?
+   *
+   * Use `tokenId: 0` to apply the conduit approval at the account level.
+   *
+   * Use a non-zero token id like `123` to apply the conduit approval only to
+   * that specific veNFT.
+   */
   tokenId: BigintIsh;
   conduitAddress: string;
   approve?: boolean;
