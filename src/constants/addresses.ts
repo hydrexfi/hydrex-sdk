@@ -24,6 +24,10 @@ export const VOTER_ADDRESSES: { [chainId: number]: string } = {
   [ChainId.Base]: '0xc69E3eF39E3fFBcE2A1c570f8d3ADF76909ef17b',
 };
 
+export const VE_TOKEN_LENS_ADDRESSES: { [chainId: number]: string } = {
+  [ChainId.Base]: '0xF4d3fCA00640F5bEb7480AA113ED7B0C2c366866',
+};
+
 export const ICHI_VAULT_DEPOSIT_GUARD_ADDRESSES: { [chainId: number]: string } = {
   [ChainId.Base]: '0x9A0EBEc47c85fD30F1fdc90F57d2b178e84DC8d8',
 };
