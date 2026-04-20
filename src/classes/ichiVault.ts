@@ -44,7 +44,6 @@ export interface IchiWithdrawEstimate {
  * (deposits and withdrawals) must target the IchiVaultDepositGuard contract.
  */
 export abstract class IchiVault {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public static INTERFACE: Interface = new Interface(ichiVaultABI as unknown as any[]);
 
   private constructor() {}

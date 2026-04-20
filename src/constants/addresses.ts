@@ -28,6 +28,10 @@ export const VE_TOKEN_LENS_ADDRESSES: { [chainId: number]: string } = {
   [ChainId.Base]: '0xF4d3fCA00640F5bEb7480AA113ED7B0C2c366866',
 };
 
+export const VE_TOKEN_ADDRESSES: { [chainId: number]: string } = {
+  [ChainId.Base]: '0x25B2ED7149fb8A05f6eF9407d9c8F878f59cd1e1',
+};
+
 export const ICHI_VAULT_DEPOSIT_GUARD_ADDRESSES: { [chainId: number]: string } = {
   [ChainId.Base]: '0x9A0EBEc47c85fD30F1fdc90F57d2b178e84DC8d8',
 };

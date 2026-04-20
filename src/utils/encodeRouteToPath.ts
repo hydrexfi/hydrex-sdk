@@ -5,9 +5,15 @@ import { Currency } from '../entities';
 import { AnyToken } from '../types';
 
 /**
- * Converts a route to a hex encoded path
- * @param route the v3 path to convert to an encoded path
- * @param exactOutput whether the route should be encoded in reverse, for making exact output swaps
+ * Converts a route to a hex-encoded path suitable for the Hydrex swap router.
+ *
+ * Unlike the standard Uniswap v3 path format (tokenA, fee, tokenB), Hydrex
+ * encodes the pool deployer address instead of the fee tier:
+ *   (tokenA, deployer, tokenB [, deployer, tokenC …])
+ *
+ * @param route the route to convert to an encoded path
+ * @param exactOutput whether the route should be encoded in reverse, for exact output swaps
+ * @returns ABI-packed hex path string
  */
 export function encodeRouteToPath(
   route: Route<Currency, Currency>,
