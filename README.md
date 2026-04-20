@@ -19,9 +19,9 @@ The Hydrex SDK provides tools to:
 ## Installation
 
 ```bash
-npm install @cooperalma/hydrex-sdk
+npm install @hydrexfi/hydrex-sdk
 # or
-yarn add @cooperalma/hydrex-sdk
+yarn add @hydrexfi/hydrex-sdk
 ```
 
 ## Supported Networks
@@ -49,7 +49,7 @@ import {
   WNATIVE,
   Percent,
   CurrencyAmount,
-} from '@cooperalma/hydrex-sdk';
+} from '@hydrexfi/hydrex-sdk';
 ```
 
 ---
@@ -63,7 +63,7 @@ import {
 Represents an ERC-20 token.
 
 ```typescript
-import { Token, ChainId } from '@cooperalma/hydrex-sdk';
+import { Token, ChainId } from '@hydrexfi/hydrex-sdk';
 
 const USDC = new Token(
   ChainId.Base,
@@ -79,7 +79,7 @@ const USDC = new Token(
 Represent the native chain currency (ETH on Base). Use `Native.onChain(chainId)` or `ExtendedNative.onChain(chainId)` to get a cached instance. Both wrap to `WNATIVE[chainId]`.
 
 ```typescript
-import { Native, ChainId } from '@cooperalma/hydrex-sdk';
+import { Native, ChainId } from '@hydrexfi/hydrex-sdk';
 
 const eth = Native.onChain(ChainId.Base);
 ```
@@ -89,7 +89,7 @@ const eth = Native.onChain(ChainId.Base);
 Represents an ERC4626 vault-share token (e.g. a Morpho or Euler position). The vault deposits the `underlying` token and issues shares.
 
 ```typescript
-import { BoostedToken, ChainId } from '@cooperalma/hydrex-sdk';
+import { BoostedToken, ChainId } from '@hydrexfi/hydrex-sdk';
 
 const mwETH = new BoostedToken(
   ChainId.Base,
@@ -106,7 +106,7 @@ const mwETH = new BoostedToken(
 Wraps a raw token amount with its currency.
 
 ```typescript
-import { CurrencyAmount } from '@cooperalma/hydrex-sdk';
+import { CurrencyAmount } from '@hydrexfi/hydrex-sdk';
 
 const amount = CurrencyAmount.fromRawAmount(USDC, '1000000'); // 1 USDC
 ```
@@ -116,7 +116,7 @@ const amount = CurrencyAmount.fromRawAmount(USDC, '1000000'); // 1 USDC
 A `Fraction` that renders as a percentage.
 
 ```typescript
-import { Percent } from '@cooperalma/hydrex-sdk';
+import { Percent } from '@hydrexfi/hydrex-sdk';
 
 const slippage = new Percent(50, 10_000); // 0.5%
 ```
@@ -126,7 +126,7 @@ const slippage = new Percent(50, 10_000); // 0.5%
 A typed price between two currencies.
 
 ```typescript
-import { Price } from '@cooperalma/hydrex-sdk';
+import { Price } from '@hydrexfi/hydrex-sdk';
 
 const price = new Price({ baseAmount: usdcAmount, quoteAmount: wethAmount });
 ```
@@ -135,24 +135,31 @@ const price = new Price({ baseAmount: usdcAmount, quoteAmount: wethAmount });
 
 ### Computing Pool Addresses
 
-```typescript
-import { computePoolAddress, ChainId } from '@cooperalma/hydrex-sdk';
+`Pool.getAddress` is the recommended surface — it automatically uses `POOL_DEPLOYER_ADDRESSES` for the token's chain:
 
+```typescript
+import { Pool } from '@hydrexfi/hydrex-sdk';
+
+const poolAddress = Pool.getAddress(USDC, WETH);
+```
+
+For lower-level use cases (e.g. a custom deployer address), use `computePoolAddress` directly with an explicit `poolDeployer`:
+
+```typescript
+import { computePoolAddress, POOL_DEPLOYER_ADDRESSES, ChainId } from '@hydrexfi/hydrex-sdk';
+
+// Standard pool
 const poolAddress = computePoolAddress({
+  poolDeployer: POOL_DEPLOYER_ADDRESSES[ChainId.Base],
   tokenA: USDC,
   tokenB: WETH,
 });
-```
 
-For pools deployed by a custom deployer:
-
-```typescript
-import { computeCustomPoolAddress } from '@cooperalma/hydrex-sdk';
-
-const customPoolAddress = computeCustomPoolAddress({
+// Custom deployer
+const customPoolAddress = computePoolAddress({
+  poolDeployer: '0xYourCustomDeployer',
   tokenA: USDC,
   tokenB: WETH,
-  customPoolDeployer: '0xYourCustomDeployer',
 });
 ```
 
@@ -169,7 +176,7 @@ import {
   INITIAL_POOL_FEE,
   DEFAULT_TICK_SPACING,
   ChainId,
-} from '@cooperalma/hydrex-sdk';
+} from '@hydrexfi/hydrex-sdk';
 
 const pool = new Pool(
   USDC,                                       // tokenA
@@ -210,7 +217,7 @@ import {
   CurrencyAmount,
   SWAP_ROUTER_ADDRESSES,
   ChainId,
-} from '@cooperalma/hydrex-sdk';
+} from '@hydrexfi/hydrex-sdk';
 
 const route = new Route([pool], USDC, WETH);
 
@@ -252,7 +259,7 @@ const { calldata, value } = SwapRouter.swapCallParameters(trade, {
 #### `Position`
 
 ```typescript
-import { Position, nearestUsableTick, DEFAULT_TICK_SPACING } from '@cooperalma/hydrex-sdk';
+import { Position, nearestUsableTick, DEFAULT_TICK_SPACING } from '@hydrexfi/hydrex-sdk';
 
 const position = Position.fromAmounts({
   pool,
@@ -270,7 +277,7 @@ const { amount0, amount1 } = position.mintAmounts;
 #### Minting a new position
 
 ```typescript
-import { NonfungiblePositionManager, Percent, NONFUNGIBLE_POSITION_MANAGER_ADDRESSES, ChainId } from '@cooperalma/hydrex-sdk';
+import { NonfungiblePositionManager, Percent, NONFUNGIBLE_POSITION_MANAGER_ADDRESSES, ChainId } from '@hydrexfi/hydrex-sdk';
 
 const { calldata, value } = NonfungiblePositionManager.addCallParameters(position, {
   slippageTolerance: new Percent(50, 10_000),
@@ -325,7 +332,7 @@ const { calldata, value } = NonfungiblePositionManager.removeCallParameters(posi
 Hydrex supports ERC4626 vault-wrapped tokens as first-class routing entities. A `BoostedRoute` automatically inserts `WRAP`/`UNWRAP` steps around the core `SWAP` step.
 
 ```typescript
-import { BoostedToken, BoostedRoute, BoostedRouteStepType } from '@cooperalma/hydrex-sdk';
+import { BoostedToken, BoostedRoute, BoostedRouteStepType } from '@hydrexfi/hydrex-sdk';
 
 const mwETH = new BoostedToken(
   ChainId.Base,
@@ -356,7 +363,7 @@ boostedRoute.steps.forEach(step => {
 #### Write: calldata builders
 
 ```typescript
-import { Gauge } from '@cooperalma/hydrex-sdk';
+import { Gauge } from '@hydrexfi/hydrex-sdk';
 
 // Stake a specific amount
 const { calldata } = Gauge.depositCallParameters('1000000000000000000');
@@ -419,7 +426,7 @@ const isReward: boolean = await Gauge.isRewardToken('0xToken', readContract);
 #### Write: calldata builders
 
 ```typescript
-import { Voter } from '@cooperalma/hydrex-sdk';
+import { Voter } from '@hydrexfi/hydrex-sdk';
 
 // Vote on pools — weights define relative proportions summing to 100%
 const { calldata } = Voter.voteCallParameters({
@@ -471,7 +478,7 @@ const weight: bigint = await Voter.getWeight('0xPool', readContract);
 #### Discovering claimable rewards
 
 ```typescript
-import { ClaimRewards, GaugeRewardReadInput } from '@cooperalma/hydrex-sdk';
+import { ClaimRewards, GaugeRewardReadInput } from '@hydrexfi/hydrex-sdk';
 
 const gauges: GaugeRewardReadInput[] = [
   { gaugeAddress: '0xGauge1', readContract: readContractForGauge1 },
@@ -533,7 +540,7 @@ const { calldata } = ClaimRewards.claimRewardTokensToRecipientCallParameters({
 `VeNFTClaims` builds calldata for veNFT holders to claim trading fees and voting bribes. All transactions target `VOTER_ADDRESSES[chainId]`.
 
 ```typescript
-import { VeNFTClaims } from '@cooperalma/hydrex-sdk';
+import { VeNFTClaims } from '@hydrexfi/hydrex-sdk';
 
 // Claim fees from a single fee contract for token ID 42
 const { calldata } = VeNFTClaims.claimFeeCallParameters({
@@ -582,7 +589,7 @@ const { calldata } = VeNFTClaims.claimBribesToRecipientByTokenIdCallParameters({
 `VeNFTLens` reads the `VeTokenLens` contract to discover which fees and bribes are claimable for a given veNFT. The output is shaped to pass directly into the `VeNFTClaims` builders.
 
 ```typescript
-import { VeNFTLens, VeNFTClaimable } from '@cooperalma/hydrex-sdk';
+import { VeNFTLens, VeNFTClaimable } from '@hydrexfi/hydrex-sdk';
 
 // Discover claimable rewards for a single pair
 const rewards: VeTokenLensReward[] = await VeNFTLens.getSinglePairReward(
@@ -611,6 +618,124 @@ const { calldata: briberCalldata } = VeNFTClaims.claimBribesCallParameters({
 
 ---
 
+### Account Automation
+
+`AccountAutomation` manages on-chain approvals that let conduit contracts act on behalf of a user. Two distinct flows exist.
+
+- **Protocol-account (veNFT) automation** — per-token, conduit-selectable. Approve a conduit for a specific token ID, or use `tokenId: 0` for an account-level approval that covers all veNFTs.
+- **Liquid (gauge) automation** — a global toggle for the LpConduit across four contracts (veToken, merklDistributor, optionsToken).
+
+#### Protocol-account (veNFT) automation
+
+Check the current state before building any transactions:
+
+```typescript
+import { AccountAutomation } from '@hydrexfi/hydrex-sdk';
+
+// readContracts must be bound to the veToken contract
+const state = await AccountAutomation.getAutomationApprovalState(
+  '0xOwnerWallet',
+  '0xConduitAddress',
+  readContracts,
+);
+// state.hasClaimApproval  — isClaimRedirectApprovedForAll
+// state.hasNftApproval    — isApprovedForAll
+// state.isFullyAutomated  — both true
+```
+
+Approve a conduit for a specific veNFT (or `tokenId: 0` for account-level):
+
+```typescript
+// → send calldata to the veToken contract
+const { calldata } = AccountAutomation.setConduitApprovalCallParameters({
+  tokenId: 42,               // or 0 for account-level
+  conduitAddress: '0xConduitAddress',
+  approve: true,             // false to revoke
+});
+```
+
+veMaxi conduits re-lock rewards as a new veNFT, so they also require ERC721 operator approval:
+
+```typescript
+// Only needed for veMaxi conduits — send calldata to the veToken contract
+const { calldata } = AccountAutomation.setApprovalForAllCallParameters({
+  operator: '0xConduitAddress',
+  approved: true,
+});
+```
+
+Optionally route payouts to a specific address:
+
+```typescript
+// → send calldata to the conduit contract (not veToken)
+const { calldata } = AccountAutomation.setMyPayoutRecipientCallParameters({
+  recipient: '0xRecipientWallet',
+});
+
+// Read the current payout recipient
+// readContract must be bound to the conduit contract
+const recipient = await AccountAutomation.getPayoutRecipient(
+  '0xOwnerWallet',
+  readContract,
+);
+```
+
+#### Liquid (gauge) automation
+
+Liquid automation requires four approvals across three contracts. Use `automateGaugesCallParameters` to build them all at once:
+
+```typescript
+const params = AccountAutomation.automateGaugesCallParameters(
+  '0xLpConduitAddress',
+  '0xOwnerWallet',
+  true,  // true to enable, false to revoke
+);
+
+// Route each call to the correct contract:
+// params.veTokenCalls[0]      → veToken           setApprovalForAll
+// params.veTokenCalls[1]      → veToken           setConduitApproval (tokenId = 0)
+// params.merklDistributorCall → merklDistributor  toggleOperator
+// params.optionsTokenCall     → optionsToken      approve
+```
+
+> **Important:** `merklDistributor.toggleOperator` flips state rather than accepting an explicit boolean. Only submit this bundle when the current Merkl operator state is the opposite of your intent. Check first with `getLiquidAutomationApprovalState`.
+
+Read all four approval axes at once:
+
+```typescript
+// Each read function must be bound to its respective contract
+const state = await AccountAutomation.getLiquidAutomationApprovalState(
+  '0xOwnerWallet',
+  '0xLpConduitAddress',
+  readVeTokenContracts,       // bound to veToken
+  readMerklOperatorContract,  // bound to merklDistributor
+  readOptionsTokenAllowance,  // bound to optionsToken
+);
+// state.hasClaimApproval         — veToken.isClaimRedirectApprovedForAll
+// state.hasNftApproval           — veToken.isApprovedForAll
+// state.hasMerklOperatorApproval — merklDistributor.operators
+// state.hasOptionsTokenApproval  — optionsToken.allowance > 0
+// state.isFullyAutomated         — all four true
+```
+
+Build individual calls if you need to re-submit only a specific approval:
+
+```typescript
+// Merkl operator toggle — only submit when current state ≠ desired state
+const { calldata } = AccountAutomation.setMerklOperatorCallParameters({
+  userAddress: '0xOwnerWallet',
+  conduitAddress: '0xLpConduitAddress',
+});
+
+// Options token approval — omit `amount` for MAX_UINT256; pass 0 to revoke
+const { calldata } = AccountAutomation.approveOptionsTokenCallParameters({
+  conduitAddress: '0xLpConduitAddress',
+  // amount: 0,  // pass to revoke
+});
+```
+
+---
+
 ### Ichi Single-Sided Vaults
 
 Hydrex integrates with Ichi single-sided vaults that rebalance liquidity automatically. All user transactions target the Deposit Guard contract, not the vault directly.
@@ -618,7 +743,7 @@ Hydrex integrates with Ichi single-sided vaults that rebalance liquidity automat
 #### Reading vault state with `IchiVault`
 
 ```typescript
-import { IchiVault, IchiVaultInfo } from '@cooperalma/hydrex-sdk';
+import { IchiVault, IchiVaultInfo } from '@hydrexfi/hydrex-sdk';
 
 // Read all vault state in one batched call
 // readContracts must be bound to the vault contract address
@@ -660,7 +785,7 @@ import {
   ICHI_VAULT_DEPOSIT_GUARD_ADDRESSES,
   ICHI_VAULT_DEPLOYER_ADDRESSES,
   ChainId,
-} from '@cooperalma/hydrex-sdk';
+} from '@hydrexfi/hydrex-sdk';
 
 // ERC20 deposit — approve Deposit Guard for `amount` of the deposit token first
 const { calldata, value } = IchiVaultDepositGuard.buildDepositCallParameters({
@@ -709,7 +834,7 @@ const { calldata, value } = IchiVaultDepositGuard.buildNativeWithdrawCallParamet
 The SDK uses an injected read pattern so you can use any web3 library (viem, ethers, wagmi, etc.). The `ReadContractFunction` and `ReadContractsFunction` types describe what the SDK expects.
 
 ```typescript
-import type { ReadContractFunction, ReadContractsFunction } from '@cooperalma/hydrex-sdk';
+import type { ReadContractFunction, ReadContractsFunction } from '@hydrexfi/hydrex-sdk';
 
 // Example with viem
 const readContract: ReadContractFunction = ({ functionName, args }) =>
@@ -728,7 +853,7 @@ const readContracts: ReadContractsFunction = (calls) =>
 ### Amount / Price Parsing
 
 ```typescript
-import { tryParseAmount, tryParsePrice, tryParseTick } from '@cooperalma/hydrex-sdk';
+import { tryParseAmount, tryParsePrice, tryParseTick } from '@hydrexfi/hydrex-sdk';
 
 const amount = tryParseAmount('1.5', USDC);          // CurrencyAmount | undefined
 const price  = tryParsePrice(USDC, WETH, '0.0005');  // Price | undefined
@@ -738,7 +863,7 @@ const tick   = tryParseTick(USDC, WETH, fee, '0.0005'); // number | undefined
 ### Max Spend
 
 ```typescript
-import { maxAmountSpend } from '@cooperalma/hydrex-sdk';
+import { maxAmountSpend } from '@hydrexfi/hydrex-sdk';
 
 // For native ETH, subtracts a ~0.01 ETH gas reserve
 const safeAmount = maxAmountSpend(ethAmount);
@@ -747,7 +872,7 @@ const safeAmount = maxAmountSpend(ethAmount);
 ### Unwrap WETH to Native
 
 ```typescript
-import { unwrappedToken } from '@cooperalma/hydrex-sdk';
+import { unwrappedToken } from '@hydrexfi/hydrex-sdk';
 
 // Maps WNATIVE to Native.onChain; other tokens are returned unchanged
 const currency = unwrappedToken(WETH); // => Native (ETH)
@@ -756,7 +881,7 @@ const currency = unwrappedToken(WETH); // => Native (ETH)
 ### Retry
 
 ```typescript
-import { retry, RetryableError } from '@cooperalma/hydrex-sdk';
+import { retry, RetryableError } from '@hydrexfi/hydrex-sdk';
 
 const { promise, cancel } = retry(
   async () => { /* your async operation */ },
@@ -767,7 +892,7 @@ const { promise, cancel } = retry(
 ### Tick Utilities
 
 ```typescript
-import { nearestUsableTick, tickToPrice, priceToClosestTick, getTickToPrice, TickMath } from '@cooperalma/hydrex-sdk';
+import { nearestUsableTick, tickToPrice, priceToClosestTick, getTickToPrice, TickMath } from '@hydrexfi/hydrex-sdk';
 
 const tick = nearestUsableTick(rawTick, tickSpacing);
 const price = tickToPrice(token0, token1, tick);
@@ -780,7 +905,7 @@ const tickFromRatio = TickMath.getTickAtSqrtRatio(sqrtRatio);
 ### Pool Address Utilities
 
 ```typescript
-import { encodeSqrtRatioX96, encodeRouteToPath } from '@cooperalma/hydrex-sdk';
+import { encodeSqrtRatioX96, encodeRouteToPath } from '@hydrexfi/hydrex-sdk';
 
 const sqrtRatio = encodeSqrtRatioX96(amount1, amount0);
 const path = encodeRouteToPath(route, exactOutput);
@@ -803,14 +928,14 @@ import {
   formatDateAgo,
   formatEpochDuration,
   formatTimeUntilEpochFlip,
-} from '@cooperalma/hydrex-sdk';
+} from '@hydrexfi/hydrex-sdk';
 ```
 
 ### Epoch Utilities
 
 ```typescript
-import { buildEpochDetails } from '@cooperalma/hydrex-sdk';
-import type { EpochDetails } from '@cooperalma/hydrex-sdk';
+import { buildEpochDetails } from '@hydrexfi/hydrex-sdk';
+import type { EpochDetails } from '@hydrexfi/hydrex-sdk';
 
 const epoch: EpochDetails = buildEpochDetails(epochDuration, epochTimestamp, options);
 ```
@@ -831,7 +956,7 @@ import {
   selfPermitABI,
   veTokenLensABI,
   voterABI,
-} from '@cooperalma/hydrex-sdk';
+} from '@hydrexfi/hydrex-sdk';
 ```
 
 ---
@@ -853,7 +978,7 @@ import {
   ADDRESS_ZERO,
   INITIAL_POOL_FEE,
   DEFAULT_TICK_SPACING,
-} from '@cooperalma/hydrex-sdk';
+} from '@hydrexfi/hydrex-sdk';
 
 // Chain IDs
 ChainId.Base         // 8453
@@ -893,7 +1018,7 @@ import {
   Strategist,
   StrategyType,
   LiquidityType,
-} from '@cooperalma/hydrex-sdk';
+} from '@hydrexfi/hydrex-sdk';
 
 TradeType.EXACT_INPUT   // 0
 TradeType.EXACT_OUTPUT  // 1

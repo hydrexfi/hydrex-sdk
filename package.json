@@ -30,7 +30,7 @@
     "singleQuote": true,
     "trailingComma": "es5"
   },
-  "name": "@cooperalma/hydrex-sdk",
+  "name": "@hydrexfi/hydrex-sdk",
   "author": "Hydrex",
   "module": "dist/hydrex-sdk.esm.js",
   "dependencies": {
