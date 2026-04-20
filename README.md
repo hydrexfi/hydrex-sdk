@@ -135,24 +135,31 @@ const price = new Price({ baseAmount: usdcAmount, quoteAmount: wethAmount });
 
 ### Computing Pool Addresses
 
-```typescript
-import { computePoolAddress, ChainId } from '@hydrexfi/hydrex-sdk';
+`Pool.getAddress` is the recommended surface — it automatically uses `POOL_DEPLOYER_ADDRESSES` for the token's chain:
 
+```typescript
+import { Pool } from '@hydrexfi/hydrex-sdk';
+
+const poolAddress = Pool.getAddress(USDC, WETH);
+```
+
+For lower-level use cases (e.g. a custom deployer address), use `computePoolAddress` directly with an explicit `poolDeployer`:
+
+```typescript
+import { computePoolAddress, POOL_DEPLOYER_ADDRESSES, ChainId } from '@hydrexfi/hydrex-sdk';
+
+// Standard pool
 const poolAddress = computePoolAddress({
+  poolDeployer: POOL_DEPLOYER_ADDRESSES[ChainId.Base],
   tokenA: USDC,
   tokenB: WETH,
 });
-```
 
-For pools deployed by a custom deployer:
-
-```typescript
-import { computeCustomPoolAddress } from '@hydrexfi/hydrex-sdk';
-
-const customPoolAddress = computeCustomPoolAddress({
+// Custom deployer
+const customPoolAddress = computePoolAddress({
+  poolDeployer: '0xYourCustomDeployer',
   tokenA: USDC,
   tokenB: WETH,
-  customPoolDeployer: '0xYourCustomDeployer',
 });
 ```
 
@@ -606,6 +613,124 @@ const { calldata } = VeNFTClaims.claimFeesCallParameters({
 const { calldata: briberCalldata } = VeNFTClaims.claimBribesCallParameters({
   tokenId: 42n,
   claims: claimable.bribes,
+});
+```
+
+---
+
+### Account Automation
+
+`AccountAutomation` manages on-chain approvals that let conduit contracts act on behalf of a user. Two distinct flows exist.
+
+- **Protocol-account (veNFT) automation** — per-token, conduit-selectable. Approve a conduit for a specific token ID, or use `tokenId: 0` for an account-level approval that covers all veNFTs.
+- **Liquid (gauge) automation** — a global toggle for the LpConduit across four contracts (veToken, merklDistributor, optionsToken).
+
+#### Protocol-account (veNFT) automation
+
+Check the current state before building any transactions:
+
+```typescript
+import { AccountAutomation } from '@hydrexfi/hydrex-sdk';
+
+// readContracts must be bound to the veToken contract
+const state = await AccountAutomation.getAutomationApprovalState(
+  '0xOwnerWallet',
+  '0xConduitAddress',
+  readContracts,
+);
+// state.hasClaimApproval  — isClaimRedirectApprovedForAll
+// state.hasNftApproval    — isApprovedForAll
+// state.isFullyAutomated  — both true
+```
+
+Approve a conduit for a specific veNFT (or `tokenId: 0` for account-level):
+
+```typescript
+// → send calldata to the veToken contract
+const { calldata } = AccountAutomation.setConduitApprovalCallParameters({
+  tokenId: 42,               // or 0 for account-level
+  conduitAddress: '0xConduitAddress',
+  approve: true,             // false to revoke
+});
+```
+
+veMaxi conduits re-lock rewards as a new veNFT, so they also require ERC721 operator approval:
+
+```typescript
+// Only needed for veMaxi conduits — send calldata to the veToken contract
+const { calldata } = AccountAutomation.setApprovalForAllCallParameters({
+  operator: '0xConduitAddress',
+  approved: true,
+});
+```
+
+Optionally route payouts to a specific address:
+
+```typescript
+// → send calldata to the conduit contract (not veToken)
+const { calldata } = AccountAutomation.setMyPayoutRecipientCallParameters({
+  recipient: '0xRecipientWallet',
+});
+
+// Read the current payout recipient
+// readContract must be bound to the conduit contract
+const recipient = await AccountAutomation.getPayoutRecipient(
+  '0xOwnerWallet',
+  readContract,
+);
+```
+
+#### Liquid (gauge) automation
+
+Liquid automation requires four approvals across three contracts. Use `automateGaugesCallParameters` to build them all at once:
+
+```typescript
+const params = AccountAutomation.automateGaugesCallParameters(
+  '0xLpConduitAddress',
+  '0xOwnerWallet',
+  true,  // true to enable, false to revoke
+);
+
+// Route each call to the correct contract:
+// params.veTokenCalls[0]      → veToken           setApprovalForAll
+// params.veTokenCalls[1]      → veToken           setConduitApproval (tokenId = 0)
+// params.merklDistributorCall → merklDistributor  toggleOperator
+// params.optionsTokenCall     → optionsToken      approve
+```
+
+> **Important:** `merklDistributor.toggleOperator` flips state rather than accepting an explicit boolean. Only submit this bundle when the current Merkl operator state is the opposite of your intent. Check first with `getLiquidAutomationApprovalState`.
+
+Read all four approval axes at once:
+
+```typescript
+// Each read function must be bound to its respective contract
+const state = await AccountAutomation.getLiquidAutomationApprovalState(
+  '0xOwnerWallet',
+  '0xLpConduitAddress',
+  readVeTokenContracts,       // bound to veToken
+  readMerklOperatorContract,  // bound to merklDistributor
+  readOptionsTokenAllowance,  // bound to optionsToken
+);
+// state.hasClaimApproval         — veToken.isClaimRedirectApprovedForAll
+// state.hasNftApproval           — veToken.isApprovedForAll
+// state.hasMerklOperatorApproval — merklDistributor.operators
+// state.hasOptionsTokenApproval  — optionsToken.allowance > 0
+// state.isFullyAutomated         — all four true
+```
+
+Build individual calls if you need to re-submit only a specific approval:
+
+```typescript
+// Merkl operator toggle — only submit when current state ≠ desired state
+const { calldata } = AccountAutomation.setMerklOperatorCallParameters({
+  userAddress: '0xOwnerWallet',
+  conduitAddress: '0xLpConduitAddress',
+});
+
+// Options token approval — omit `amount` for MAX_UINT256; pass 0 to revoke
+const { calldata } = AccountAutomation.approveOptionsTokenCallParameters({
+  conduitAddress: '0xLpConduitAddress',
+  // amount: 0,  // pass to revoke
 });
 ```
 
