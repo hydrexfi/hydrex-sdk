@@ -12,6 +12,8 @@ import { MethodParameters, toHex } from '../utils/calldata';
 import { toBigInt } from '../utils/toBigInt';
 import { validateAndParseAddress } from '../utils/validateAndParseAddress';
 import type { UserVoteSnapshot } from './veNFTLens';
+import { ADDRESS_ZERO } from '../constants/constants';
+import type { VeNFTAccount } from './veNFTLens';
 
 export interface VoteOptions {
   /**
@@ -55,6 +57,11 @@ export interface UserVotePowerBreakdown {
   totalVotingPower?: BigintIsh | bigint;
   manualVotingPower?: BigintIsh | bigint;
   automatedVotingPower?: BigintIsh | bigint;
+}
+
+export interface VotePowerBreakdownOptions {
+  conduitAddresses?: string[];
+  treatUnknownDelegateesAsAutomated?: boolean;
 }
 
 /**
@@ -404,6 +411,65 @@ export abstract class Voter {
       hasVotedForCurrentEpoch,
       totalVotingPower,
       manualVotingPower: normalizedManualVotingPower,
+      automatedVotingPower,
+    };
+  }
+
+  /**
+   * Derives the manual vs automated voting power split from normalized veNFT
+   * account reads.
+   *
+   * The most reliable mode is to pass known conduit addresses, which mirrors the
+   * frontend's current approach of matching delegatees against the conduit list.
+   * When no conduit list is available, callers may opt into a fallback heuristic
+   * that treats non-zero third-party delegatees as automated.
+   *
+   * Voting power uses `earningPower` when available and falls back to
+   * `votingPower`.
+   *
+   * @param accounts normalized veNFT accounts, typically from VeNFTLens
+   * @param options optional conduit matching and heuristic settings
+   */
+  public static getVotePowerBreakdown(
+    accounts: VeNFTAccount[],
+    options: VotePowerBreakdownOptions = {},
+  ): UserVotePowerBreakdown {
+    const conduitAddresses = new Set(
+      (options.conduitAddresses ?? []).map(address =>
+        validateAndParseAddress(address).toLowerCase(),
+      ),
+    );
+    let totalVotingPower = BigInt(0);
+    let manualVotingPower = BigInt(0);
+    let automatedVotingPower = BigInt(0);
+
+    accounts.forEach(account => {
+      const power =
+        account.earningPower > BigInt(0) ? account.earningPower : account.votingPower;
+      const normalizedDelegatee = validateAndParseAddress(account.delegatee);
+      const normalizedAccount = validateAndParseAddress(account.account);
+      const hasConduitMatch = conduitAddresses.has(normalizedDelegatee.toLowerCase());
+      const looksDelegatedToThirdParty =
+        normalizedDelegatee !== ADDRESS_ZERO &&
+        normalizedDelegatee !== normalizedAccount;
+      const isAutomated =
+        hasConduitMatch ||
+        (options.treatUnknownDelegateesAsAutomated === true &&
+          looksDelegatedToThirdParty);
+
+      totalVotingPower += power;
+
+      if (isAutomated) {
+        automatedVotingPower += power;
+        return;
+      }
+
+      manualVotingPower += power;
+    });
+
+    return {
+      totalVotingPower,
+      manualVotingPower,
       automatedVotingPower,
     };
   }
