@@ -309,17 +309,15 @@ export abstract class VeNFTLens {
   private static parseUserVoteSnapshot(result: unknown): UserVoteSnapshot {
     const rawResult = result as {
       voted: unknown;
-      votingPower: unknown;
-      earningPower: unknown;
       epochVotes: unknown;
       nextEpochVotes: unknown;
       nextEarningPower: unknown;
       voteTs: unknown;
       votes: unknown;
     };
-    const rawVotingPower = toBigInt(rawResult.votingPower);
-    const rawEarningPower = toBigInt(rawResult.earningPower);
     const rawEpochVotes = toBigInt(rawResult.epochVotes);
+    const rawVotingPower = rawEpochVotes;
+    const rawEarningPower = (rawEpochVotes * BigInt(13)) / BigInt(10);
     const rawNextEpochVotes = toBigInt(rawResult.nextEpochVotes);
     const rawNextEarningPower = toBigInt(rawResult.nextEarningPower);
     const rawVoteTs = toBigInt(rawResult.voteTs);
