@@ -34,6 +34,36 @@ export interface SnapshotVote {
   percent: number;
 }
 
+export interface VeNFTAccountVote {
+  pair: string;
+  weight: bigint;
+}
+
+export interface VeNFTAccount {
+  tokenId: bigint;
+  amount: bigint;
+  decimals: number;
+  voted: boolean;
+  attachments: bigint;
+  votingPower: bigint;
+  earningPower: bigint;
+  rebaseAmount: bigint;
+  lockEnd: bigint;
+  voteTs: bigint;
+  votes: VeNFTAccountVote[];
+  account: string;
+  delegatee: string;
+  payoutToken: string;
+  tokenSymbol?: string;
+  tokenDecimals?: number;
+}
+
+export interface VeNFTAccountsByAddress {
+  owner: string;
+  balance: number;
+  accounts: VeNFTAccount[];
+}
+
 export interface UserVoteSnapshot {
   voted: boolean;
   votingPower: string;
@@ -178,6 +208,75 @@ export abstract class VeNFTLens {
   }
 
   /**
+   * Reads the current vote snapshot for a single veNFT token id from VeTokenLens.
+   *
+   * Use this when the caller needs the vote breakdown for one specific veNFT
+   * rather than the wallet-level aggregate returned by `getUserVoteSnapshot`.
+   *
+   * @param tokenId veNFT token id to inspect
+   * @param readContract injected read function bound to the VeTokenLens contract
+   */
+  public static async getUserVoteSnapshotByTokenId(
+    tokenId: BigintIsh,
+    readContract: ReadContractFunction,
+  ): Promise<UserVoteSnapshot> {
+    const result = await readContract({
+      functionName: 'getNFTFromId',
+      args: [toBigInt(tokenId)],
+    });
+
+    return VeNFTLens.parseUserVoteSnapshotFromAccount(result);
+  }
+
+  /**
+   * Reads the veNFT accounts currently associated with an owner address.
+   *
+   * This is a normalized raw lens view of the owner's accounts. It intentionally
+   * excludes the heavier app-side enrichments such as conduits, names, or epoch
+   * reward timing.
+   *
+   * @param owner wallet address to inspect
+   * @param readContract injected read function bound to the VeTokenLens contract
+   */
+  public static async getAccountsByAddress(
+    owner: string,
+    readContract: ReadContractFunction,
+  ): Promise<VeNFTAccountsByAddress> {
+    const normalizedOwner = validateAndParseAddress(owner);
+    const result = await readContract<unknown[]>({
+      functionName: 'getNFTFromAddress',
+      args: [normalizedOwner],
+    });
+    const accounts = (result ?? []).map(account =>
+      VeNFTLens.parseVeNFTAccount(account),
+    );
+
+    return {
+      owner: normalizedOwner,
+      balance: accounts.length,
+      accounts,
+    };
+  }
+
+  /**
+   * Reads a single veNFT account by token id from VeTokenLens.
+   *
+   * @param tokenId veNFT token id to inspect
+   * @param readContract injected read function bound to the VeTokenLens contract
+   */
+  public static async getAccountById(
+    tokenId: BigintIsh,
+    readContract: ReadContractFunction,
+  ): Promise<VeNFTAccount> {
+    const result = await readContract({
+      functionName: 'getNFTFromId',
+      args: [toBigInt(tokenId)],
+    });
+
+    return VeNFTLens.parseVeNFTAccount(result);
+  }
+
+  /**
    * Normalizes a raw VeTokenLens reward entry into the SDK reward shape.
    */
   private static parseReward(reward: unknown): VeTokenLensReward {
@@ -259,6 +358,56 @@ export abstract class VeNFTLens {
   }
 
   /**
+   * Normalizes a raw single-veNFT lens payload into the SDK vote snapshot shape.
+   */
+  private static parseUserVoteSnapshotFromAccount(
+    account: unknown,
+  ): UserVoteSnapshot {
+    const rawAccount = account as {
+      voted: unknown;
+      voting_amount: unknown;
+      earning_power: unknown;
+      vote_ts: unknown;
+      votes: unknown;
+    };
+    const rawVotingPower = toBigInt(rawAccount.voting_amount);
+    const rawEarningPower = toBigInt(rawAccount.earning_power);
+    const rawVoteTs = toBigInt(rawAccount.vote_ts);
+    const parsedVotes = Array.isArray(rawAccount.votes)
+      ? rawAccount.votes.map(vote => VeNFTLens.parseSnapshotVote(vote))
+      : [];
+    const totalVoteWeight = parsedVotes.reduce(
+      (sum, vote) => sum + vote.weight,
+      BigInt(0),
+    );
+
+    return {
+      voted: Boolean(rawAccount.voted) && parsedVotes.length > 0,
+      votingPower: formatUnits(rawVotingPower, 18),
+      rawVotingPower,
+      earningPower: formatUnits(rawEarningPower, 18),
+      rawEarningPower,
+      epochVotes: formatUnits(rawVotingPower, 18),
+      rawEpochVotes: rawVotingPower,
+      nextEpochVotes: formatUnits(rawVotingPower, 18),
+      rawNextEpochVotes: rawVotingPower,
+      nextEarningPower: formatUnits(rawEarningPower, 18),
+      rawNextEarningPower: rawEarningPower,
+      voteTs: Number(rawVoteTs),
+      rawVoteTs,
+      votes: parsedVotes.map(vote => ({
+        ...vote,
+        percent:
+          totalVoteWeight > BigInt(0)
+            ? Math.round(
+                (Number(vote.weight) / Number(totalVoteWeight)) * 10000,
+              ) / 100
+            : 0,
+      })),
+    };
+  }
+
+  /**
    * Normalizes a raw vote row from VeTokenLens into the SDK vote row shape.
    */
   private static parseSnapshotVote(vote: unknown): SnapshotVote {
@@ -273,6 +422,74 @@ export abstract class VeNFTLens {
       weight,
       weightFormatted: formatUnits(weight, 18),
       percent: 0,
+    };
+  }
+
+  /**
+   * Normalizes a raw VeTokenLens account payload into the SDK account shape.
+   */
+  private static parseVeNFTAccount(account: unknown): VeNFTAccount {
+    const rawAccount = account as {
+      decimals: unknown;
+      voted: unknown;
+      attachments: unknown;
+      id: unknown;
+      amount: unknown;
+      voting_amount: unknown;
+      earning_power: unknown;
+      rebase_amount: unknown;
+      lockEnd: unknown;
+      vote_ts: unknown;
+      votes: unknown;
+      account: unknown;
+      delegatee: unknown;
+      token: unknown;
+      tokenSymbol: unknown;
+      tokenDecimals: unknown;
+    };
+
+    return {
+      tokenId: toBigInt(rawAccount.id),
+      amount: toBigInt(rawAccount.amount),
+      decimals: Number(rawAccount.decimals ?? 18),
+      voted: Boolean(rawAccount.voted),
+      attachments: toBigInt(rawAccount.attachments),
+      votingPower: toBigInt(rawAccount.voting_amount),
+      earningPower: toBigInt(rawAccount.earning_power),
+      rebaseAmount: toBigInt(rawAccount.rebase_amount),
+      lockEnd: toBigInt(rawAccount.lockEnd),
+      voteTs: toBigInt(rawAccount.vote_ts),
+      votes: Array.isArray(rawAccount.votes)
+        ? rawAccount.votes.map(vote => VeNFTLens.parseVeNFTAccountVote(vote))
+        : [],
+      account: validateAndParseAddress(String(rawAccount.account ?? ADDRESS_ZERO)),
+      delegatee: validateAndParseAddress(
+        String(rawAccount.delegatee ?? ADDRESS_ZERO),
+      ),
+      payoutToken: validateAndParseAddress(String(rawAccount.token ?? ADDRESS_ZERO)),
+      tokenSymbol:
+        typeof rawAccount.tokenSymbol === 'string'
+          ? rawAccount.tokenSymbol
+          : undefined,
+      tokenDecimals:
+        rawAccount.tokenDecimals !== undefined
+          ? Number(rawAccount.tokenDecimals)
+          : undefined,
+    };
+  }
+
+  /**
+   * Normalizes a raw VeTokenLens account vote row.
+   */
+  private static parseVeNFTAccountVote(vote: unknown): VeNFTAccountVote {
+    const rawVote = vote as {
+      pair: unknown;
+      weight: unknown;
+    };
+
+    return {
+      pair: validateAndParseAddress(String(rawVote.pair)),
+      weight: toBigInt(rawVote.weight),
     };
   }
 
