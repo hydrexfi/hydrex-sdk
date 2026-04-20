@@ -129,7 +129,7 @@ export abstract class SwapRouter extends SelfPermit {
       sampleTrade.inputAmount.currency.isNative &&
       sampleTrade.tradeType === TradeType.EXACT_OUTPUT;
     const inputIsNative = sampleTrade.inputAmount.currency.isNative;
-    // flags for whether funds should be send first to the router
+    // flags for whether funds should be sent first to the router
     const outputIsNative = sampleTrade.outputAmount.currency.isNative;
     const routerMustCustody = outputIsNative || !!options.fee;
 

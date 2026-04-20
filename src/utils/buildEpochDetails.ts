@@ -1,6 +1,16 @@
 import { EpochDetails, GetEpochDetailsOptions } from '../types/epoch';
 import { toBigInt } from './toBigInt';
 
+/**
+ * Derives human-readable epoch metadata from raw on-chain voter values.
+ *
+ * @param epochDuration - Raw epoch duration returned by the voter contract (seconds)
+ * @param epochTimestamp - Raw epoch timestamp returned by the voter contract
+ * @param options - Optional inputs: supply `currentTimestamp` to override the
+ *   wall-clock time used for `timeUntilEpochFlip`, and `firstEpochStart` to
+ *   enable the sequential `currentEpoch` counter
+ * @returns Derived epoch details ready for display or time-based logic
+ */
 export function buildEpochDetails(
   epochDuration: unknown,
   epochTimestamp: unknown,

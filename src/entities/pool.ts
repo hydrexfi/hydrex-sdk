@@ -47,12 +47,13 @@ export class Pool {
    * Construct a pool
    * @param tokenA One of the tokens in the pool
    * @param tokenB The other token in the pool
-   * @param fee The fee in hundredths of a bips of the input amount of every swap that is collected by the pool
+   * @param fee The fee in hundredths of a bip of the input amount of every swap that is collected by the pool
    * @param sqrtRatioX96 The sqrt of the current ratio of amounts of token1 to token0
-   * @param liquidity The current value of in range liquidity
+   * @param deployer The pool deployer address; use ADDRESS_ZERO for base (non-custom-deployer) pools
+   * @param liquidity The current value of in-range liquidity
    * @param tickCurrent The current tick of the pool
+   * @param _tickSpacing The spacing between initializable ticks
    * @param ticks The current state of the pool ticks or a data provider that can return tick data
-   * @param _tickSpacing The spacing between ticks
    */
   public constructor(
     tokenA: AnyToken,
@@ -139,6 +140,13 @@ export class Pool {
     return this._tickSpacing;
   }
 
+  /**
+   * Computes the CREATE2 address for this pool using the chain's pool deployer.
+   * @param tokenA One of the tokens in the pool
+   * @param tokenB The other token in the pool
+   * @param initCodeHashManualOverride Optional override for the pool init code hash
+   * @returns The checksummed pool address
+   */
   public static getAddress(
     tokenA: AnyToken,
     tokenB: AnyToken,
@@ -377,7 +385,6 @@ export class Pool {
         );
       }
 
-      // TODO
       if (JSBI.equal(state.sqrtPriceX96, step.sqrtPriceNextX96)) {
         // if the tick is initialized, run the tick transition
         if (step.initialized) {

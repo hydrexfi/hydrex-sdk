@@ -20,12 +20,12 @@ export class Native extends NativeCurrency {
     return wnative;
   }
 
-  private static _naitveCache: { [chainId: number]: Native } = {};
+  private static _nativeCache: { [chainId: number]: Native } = {};
 
   public static onChain(chainId: number, symbol: string, name: string): Native {
     return (
-      this._naitveCache[chainId] ??
-      (this._naitveCache[chainId] = new Native(chainId, symbol, name))
+      this._nativeCache[chainId] ??
+      (this._nativeCache[chainId] = new Native(chainId, symbol, name))
     );
   }
 

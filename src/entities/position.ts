@@ -28,7 +28,7 @@ export class Position {
   public readonly tickUpper: number;
   public readonly liquidity: JSBI;
 
-  // cached resuts for the getters
+  // cached results for the getters
   private _token0Amount: CurrencyAmount<AnyToken> | null = null;
   private _token1Amount: CurrencyAmount<AnyToken> | null = null;
 
@@ -71,44 +71,47 @@ export class Position {
    * the current price for the pool
    */
   public get mintAmounts(): Readonly<{ amount0: JSBI; amount1: JSBI }> {
-    if (this._mintAmounts === null) {
-      if (this.pool.tickCurrent < this.tickLower) {
-        return {
-          amount0: SqrtPriceMath.getAmount0Delta(
-            TickMath.getSqrtRatioAtTick(this.tickLower),
-            TickMath.getSqrtRatioAtTick(this.tickUpper),
-            this.liquidity,
-            true
-          ),
-          amount1: ZERO,
-        };
-      } else if (this.pool.tickCurrent < this.tickUpper) {
-        return {
-          amount0: SqrtPriceMath.getAmount0Delta(
-            this.pool.sqrtRatioX96,
-            TickMath.getSqrtRatioAtTick(this.tickUpper),
-            this.liquidity,
-            true
-          ),
-          amount1: SqrtPriceMath.getAmount1Delta(
-            TickMath.getSqrtRatioAtTick(this.tickLower),
-            this.pool.sqrtRatioX96,
-            this.liquidity,
-            true
-          ),
-        };
-      } else {
-        return {
-          amount0: ZERO,
-          amount1: SqrtPriceMath.getAmount1Delta(
-            TickMath.getSqrtRatioAtTick(this.tickLower),
-            TickMath.getSqrtRatioAtTick(this.tickUpper),
-            this.liquidity,
-            true
-          ),
-        };
-      }
+    if (this._mintAmounts !== null) {
+      return this._mintAmounts;
     }
+
+    if (this.pool.tickCurrent < this.tickLower) {
+      this._mintAmounts = {
+        amount0: SqrtPriceMath.getAmount0Delta(
+          TickMath.getSqrtRatioAtTick(this.tickLower),
+          TickMath.getSqrtRatioAtTick(this.tickUpper),
+          this.liquidity,
+          true
+        ),
+        amount1: ZERO,
+      };
+    } else if (this.pool.tickCurrent < this.tickUpper) {
+      this._mintAmounts = {
+        amount0: SqrtPriceMath.getAmount0Delta(
+          this.pool.sqrtRatioX96,
+          TickMath.getSqrtRatioAtTick(this.tickUpper),
+          this.liquidity,
+          true
+        ),
+        amount1: SqrtPriceMath.getAmount1Delta(
+          TickMath.getSqrtRatioAtTick(this.tickLower),
+          this.pool.sqrtRatioX96,
+          this.liquidity,
+          true
+        ),
+      };
+    } else {
+      this._mintAmounts = {
+        amount0: ZERO,
+        amount1: SqrtPriceMath.getAmount1Delta(
+          TickMath.getSqrtRatioAtTick(this.tickLower),
+          TickMath.getSqrtRatioAtTick(this.tickUpper),
+          this.liquidity,
+          true
+        ),
+      };
+    }
+
     return this._mintAmounts;
   }
 

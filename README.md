@@ -19,9 +19,9 @@ The Hydrex SDK provides tools to:
 ## Installation
 
 ```bash
-npm install @hydrex/sdk
+npm install @cooperalma/hydrex-sdk
 # or
-yarn add @hydrex/sdk
+yarn add @cooperalma/hydrex-sdk
 ```
 
 ## Supported Networks

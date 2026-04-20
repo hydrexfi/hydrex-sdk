@@ -167,6 +167,12 @@ export abstract class NonfungiblePositionManager extends SelfPermit {
     super();
   }
 
+  /**
+   * Produces the calldata for creating and initializing a pool if it does not already exist.
+   * @param pool The pool to create
+   * @param deployer Optional pool deployer address override; defaults to the pool's own deployer
+   * @returns The call parameters
+   */
   public static createCallParameters(pool: Pool, deployer?: string): MethodParameters {
     return {
       calldata: this.encodeCreate(pool, deployer || pool.deployer),
@@ -174,6 +180,12 @@ export abstract class NonfungiblePositionManager extends SelfPermit {
     };
   }
 
+  /**
+   * Produces the calldata for adding liquidity to or minting a new position.
+   * @param position The position to add liquidity for
+   * @param options Options for adding liquidity, including slippage tolerance and deadline
+   * @returns The call parameters
+   */
   public static addCallParameters(
     position: Position,
     options: AddLiquidityOptions,
@@ -186,7 +198,7 @@ export abstract class NonfungiblePositionManager extends SelfPermit {
     const { amount0: amount0Desired, amount1: amount1Desired } =
       position.mintAmounts;
 
-    // adjust for
+    // adjust desired amounts down by slippage tolerance to get on-chain minimums
     const minimumAmounts = position.mintAmountsWithSlippage(
       options.slippageTolerance,
     );
@@ -293,6 +305,11 @@ export abstract class NonfungiblePositionManager extends SelfPermit {
     };
   }
 
+  /**
+   * Produces the calldata for collecting accumulated fees from a position.
+   * @param options The collect options, including position token ID and recipient
+   * @returns The call parameters
+   */
   public static collectCallParameters(
     options: CollectOptions,
   ): { calldata: string[], value: string } {

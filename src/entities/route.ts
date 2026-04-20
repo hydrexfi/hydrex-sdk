@@ -34,9 +34,7 @@ export class Route<TInput extends Currency, TOutput extends Currency> {
 
     invariant(pools[pools.length - 1].involvesToken(output.wrapped), 'OUTPUT');
 
-    /**
-     * Normalizes token0-token1 order and selects the next token/fee step to add to the path
-     * */
+    // Normalizes token0-token1 order and selects the next token step to add to the path
     const tokenPath: AnyToken[] = [wrappedInput];
     for (let i = 0; i < pools.length; i++) {
       const pool = pools[i];
