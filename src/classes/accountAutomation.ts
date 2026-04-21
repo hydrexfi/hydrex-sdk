@@ -6,6 +6,7 @@ import { veTokenABI } from '../abis/veToken';
 import { BigintIsh } from '../types/BigIntish';
 import { ReadContractFunction, ReadContractsFunction } from '../types/contractReads';
 import { MethodParameters, toHex } from '../utils/calldata';
+import { toBigInt } from '../utils/toBigInt';
 import { validateAndParseAddress } from '../utils/validateAndParseAddress';
 
 /**
@@ -46,6 +47,37 @@ export interface SetApprovalForAllOptions {
 
 export interface SetMyPayoutRecipientOptions {
   recipient: string;
+}
+
+export interface AutomationHistoryOptions {
+  baseUrl: string;
+  fetcher?: typeof fetch;
+}
+
+export interface VeNFTAutomationDistribution {
+  token: string;
+  amountRaw: string;
+  amount: number;
+  symbol: string;
+  usd: number;
+}
+
+export interface VeNFTAutomationHistoryEntry {
+  tokenId: bigint;
+  owner: string;
+  transactionHash: string;
+  timestamp: string;
+  previousEpochTimestamp: string;
+  recipient: string;
+  distributed: VeNFTAutomationDistribution[];
+  totalUsd: number;
+  /** True when this job was executed by a veMaxi conduit (Anchor Club). */
+  isVeMaxi: boolean;
+}
+
+export interface VeNFTAutomationHistoryByToken {
+  owner: string;
+  historyByTokenId: Record<string, VeNFTAutomationHistoryEntry[]>;
 }
 
 // ---------------------------------------------------------------------------
@@ -145,6 +177,105 @@ export abstract class AccountAutomation {
   );
 
   private constructor() {}
+
+  private static resolveFetch(options: AutomationHistoryOptions): typeof fetch {
+    if (options.fetcher) {
+      return options.fetcher;
+    }
+
+    if (typeof fetch === 'function') {
+      return fetch;
+    }
+
+    throw new Error(
+      'Automation history requires a fetch implementation. Pass AutomationHistoryOptions.fetcher when fetch is unavailable in this runtime.',
+    );
+  }
+
+  private static buildAutomationHistoryUrl(
+    owner: string,
+    options: AutomationHistoryOptions,
+  ): string {
+    const trimmedBaseUrl = options.baseUrl.trim();
+
+    if (!trimmedBaseUrl) {
+      throw new Error('Automation history requires a non-empty baseUrl.');
+    }
+
+    return `${trimmedBaseUrl.replace(/\/+$/, '')}/conduits/user-jobs/${owner}`;
+  }
+
+  private static normalizeAutomationHistoryDistribution(
+    rawDistribution: unknown,
+  ): VeNFTAutomationDistribution {
+    const distribution = rawDistribution as {
+      token: unknown;
+      amountRaw: unknown;
+      amount: unknown;
+      symbol?: unknown;
+      usd: unknown;
+    };
+
+    return {
+      token: validateAndParseAddress(String(distribution.token)),
+      amountRaw: String(distribution.amountRaw),
+      amount: Number(distribution.amount),
+      symbol: String(distribution.symbol ?? ''),
+      usd: Number(distribution.usd),
+    };
+  }
+
+  private static normalizeAutomationHistoryEntry(
+    rawEntry: unknown,
+  ): VeNFTAutomationHistoryEntry {
+    const entry = rawEntry as {
+      tokenId: unknown;
+      owner: unknown;
+      transactionHash: unknown;
+      timestamp: unknown;
+      previousEpochTimestamp: unknown;
+      recipient: unknown;
+      distributed: unknown;
+      totalUsd: unknown;
+      isVeMaxi: unknown;
+    };
+
+    return {
+      tokenId: toBigInt(entry.tokenId),
+      owner: validateAndParseAddress(String(entry.owner)),
+      transactionHash: String(entry.transactionHash),
+      timestamp: String(entry.timestamp),
+      previousEpochTimestamp: String(entry.previousEpochTimestamp),
+      recipient: validateAndParseAddress(String(entry.recipient)),
+      distributed: Array.isArray(entry.distributed)
+        ? entry.distributed.map(AccountAutomation.normalizeAutomationHistoryDistribution)
+        : [],
+      totalUsd: Number(entry.totalUsd),
+      isVeMaxi: Boolean(entry.isVeMaxi),
+    };
+  }
+
+  private static normalizeAutomationHistoryResponse(
+    owner: string,
+    payload: unknown,
+  ): VeNFTAutomationHistoryByToken {
+    const historyByTokenId: Record<string, VeNFTAutomationHistoryEntry[]> = {};
+    const rawGroups =
+      payload !== null && typeof payload === 'object'
+        ? (payload as Record<string, unknown>)
+        : {};
+
+    Object.entries(rawGroups).forEach(([tokenId, rawEntries]) => {
+      historyByTokenId[tokenId] = Array.isArray(rawEntries)
+        ? rawEntries.map(AccountAutomation.normalizeAutomationHistoryEntry)
+        : [];
+    });
+
+    return {
+      owner: validateAndParseAddress(owner),
+      historyByTokenId,
+    };
+  }
 
   // -------------------------------------------------------------------------
   // Protocol-account (veNFT) automation — calldata builders
@@ -294,6 +425,94 @@ export abstract class AccountAutomation {
         }),
       ),
     );
+  }
+
+  // -------------------------------------------------------------------------
+  // Protocol-account (veNFT) automation — history
+  // -------------------------------------------------------------------------
+
+  /**
+   * Reads API-backed veNFT automation history for a wallet owner.
+   *
+   * This is not a contract read. The data comes from the protocol API's
+   * `/conduits/user-jobs/:owner` endpoint, which indexes completed automation
+   * jobs and groups them by token id.
+   *
+   * @param owner wallet address that owns the veNFT accounts
+   * @param options baseUrl and optional fetch implementation
+   */
+  public static async getAutomationHistoryByOwner(
+    owner: string,
+    options: AutomationHistoryOptions,
+  ): Promise<VeNFTAutomationHistoryByToken> {
+    const normalizedOwner = validateAndParseAddress(owner);
+    const fetcher = AccountAutomation.resolveFetch(options);
+    const endpoint = AccountAutomation.buildAutomationHistoryUrl(
+      normalizedOwner,
+      options,
+    );
+
+    let response: Response;
+    try {
+      response = await fetcher(endpoint, { method: 'GET' });
+    } catch (error) {
+      throw new Error(
+        `Failed to fetch automation history from ${endpoint}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch automation history from ${endpoint}: ${response.status} ${response.statusText}`,
+      );
+    }
+
+    let payload: unknown;
+    try {
+      payload = await response.json();
+    } catch (error) {
+      throw new Error(
+        `Failed to parse automation history response from ${endpoint}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+
+    return AccountAutomation.normalizeAutomationHistoryResponse(
+      normalizedOwner,
+      payload,
+    );
+  }
+
+  /**
+   * Reads API-backed veNFT automation history for a single token id.
+   *
+   * This reuses the owner-level history endpoint, then filters to the
+   * requested token id while preserving the grouped-by-token response shape.
+   *
+   * @param owner wallet address that owns the veNFT account
+   * @param tokenId veNFT token id to filter for
+   * @param options baseUrl and optional fetch implementation
+   */
+  public static async getAutomationHistoryByTokenId(
+    owner: string,
+    tokenId: BigintIsh,
+    options: AutomationHistoryOptions,
+  ): Promise<VeNFTAutomationHistoryByToken> {
+    const history = await AccountAutomation.getAutomationHistoryByOwner(
+      owner,
+      options,
+    );
+    const normalizedTokenId = toBigInt(tokenId).toString();
+
+    return {
+      owner: history.owner,
+      historyByTokenId: {
+        [normalizedTokenId]: history.historyByTokenId[normalizedTokenId] ?? [],
+      },
+    };
   }
 
   // -------------------------------------------------------------------------
