@@ -1,5 +1,6 @@
 import { Interface } from '@ethersproject/abi';
 import invariant from 'tiny-invariant';
+import warning from 'tiny-warning';
 import { voterABI } from '../abis/voter';
 import { BigintIsh } from '../types/BigIntish';
 import {
@@ -11,6 +12,8 @@ import { buildEpochDetails } from '../utils/buildEpochDetails';
 import { MethodParameters, toHex } from '../utils/calldata';
 import { toBigInt } from '../utils/toBigInt';
 import { validateAndParseAddress } from '../utils/validateAndParseAddress';
+import type { UserVoteSnapshot, VeNFTAccount } from './veNFTLens';
+import { ADDRESS_ZERO } from '../constants/constants';
 
 export interface VoteOptions {
   /**
@@ -39,6 +42,32 @@ export interface VoteStats {
 
 export interface PoolWeights {
   [poolAddress: string]: bigint;
+}
+
+export interface UserVoteStatus {
+  needsToVote: boolean;
+  hasVotingPower: boolean;
+  hasVotedForCurrentEpoch: boolean;
+  totalVotingPower: bigint;
+  manualVotingPower: bigint;
+  automatedVotingPower: bigint;
+}
+
+export interface UserVotePowerBreakdown {
+  totalVotingPower?: BigintIsh | bigint;
+  manualVotingPower?: BigintIsh | bigint;
+  automatedVotingPower?: BigintIsh | bigint;
+}
+
+export interface VotePowerBreakdownOptions {
+  conduitAddresses?: string[];
+  treatUnknownDelegateesAsAutomated?: boolean;
+  /**
+   * Optional predicate to exclude specific accounts from the power totals.
+   * Use this to replicate app-layer filtering — for example, skipping fresh
+   * veNFTs that have not yet reached their reward start time.
+   */
+  shouldIncludeAccount?: (account: VeNFTAccount) => boolean;
 }
 
 /**
@@ -220,8 +249,12 @@ export abstract class Voter {
   }
 
   /**
-   * Returns the voter's current vote split by pool as percentages of their
-   * saved vote allocation. If no owner is provided, an empty result is returned.
+   * Returns a lightweight allocation view of the voter's current saved votes.
+   * This helper only reports the current split by pool and last-voted timestamp.
+   * Prefer the VeNFTLens vote snapshot when the caller needs a fuller user vote
+   * status model.
+   *
+   * If no owner is provided, an empty result is returned.
    * @param owner voter address to inspect
    * @param readContracts injected batch contract read function
    */
@@ -342,14 +375,133 @@ export abstract class Voter {
   }
 
   /**
+   * Derives a compact vote status summary from a richer vote snapshot.
+   *
+   * `snapshot.voted` means the user currently has active votes saved, while
+   * `hasVotedForCurrentEpoch` only means their most recent vote action happened
+   * during the current epoch.
+   *
+   * @param snapshot richer user vote snapshot, typically from VeNFTLens
+   * @param epochDetails derived epoch details for the current epoch
+   * @param votingPower optional voting power breakdown; defaults to treating the
+   *   snapshot's total voting power as manually managed
+   */
+  public static getUserVoteStatus(
+    snapshot: UserVoteSnapshot,
+    epochDetails: EpochDetails,
+    votingPower: UserVotePowerBreakdown = {},
+  ): UserVoteStatus {
+    const totalVotingPower =
+      votingPower.totalVotingPower !== undefined
+        ? toBigInt(votingPower.totalVotingPower)
+        : snapshot.rawVotingPower;
+    const automatedVotingPower =
+      votingPower.automatedVotingPower !== undefined
+        ? toBigInt(votingPower.automatedVotingPower)
+        : BigInt(0);
+    const manualVotingPower =
+      votingPower.manualVotingPower !== undefined
+        ? toBigInt(votingPower.manualVotingPower)
+        : totalVotingPower - automatedVotingPower;
+    const normalizedManualVotingPower =
+      manualVotingPower > BigInt(0) ? manualVotingPower : BigInt(0);
+    const hasVotedForCurrentEpoch = this.hasVotedForEpoch(
+      epochDetails,
+      snapshot.rawVoteTs,
+    );
+
+    return {
+      needsToVote:
+        normalizedManualVotingPower > BigInt(0) && !hasVotedForCurrentEpoch,
+      hasVotingPower: totalVotingPower > BigInt(0),
+      hasVotedForCurrentEpoch,
+      totalVotingPower,
+      manualVotingPower: normalizedManualVotingPower,
+      automatedVotingPower,
+    };
+  }
+
+  /**
+   * Derives the manual vs automated voting power split from normalized veNFT
+   * account reads.
+   *
+   * The most reliable mode is to pass known conduit addresses, which mirrors the
+   * frontend's current approach of matching delegatees against the conduit list.
+   * When no conduit list is available, callers may opt into a fallback heuristic
+   * that treats non-zero third-party delegatees as automated.
+   *
+   * Voting power uses `earningPower` when available and falls back to
+   * `votingPower`.
+   *
+   * @param accounts normalized veNFT accounts, typically from VeNFTLens
+   * @param options optional conduit matching and heuristic settings
+   */
+  public static getVotePowerBreakdown(
+    accounts: VeNFTAccount[],
+    options: VotePowerBreakdownOptions = {},
+  ): UserVotePowerBreakdown {
+    const conduitAddresses = new Set(
+      (options.conduitAddresses ?? []).map(address =>
+        validateAndParseAddress(address).toLowerCase(),
+      ),
+    );
+
+    warning(
+      conduitAddresses.size > 0 || options.treatUnknownDelegateesAsAutomated === true,
+      'getVotePowerBreakdown: no conduitAddresses or treatUnknownDelegateesAsAutomated ' +
+        'provided. All voting power will be treated as manual; needsToVote may be ' +
+        'incorrect for wallets with automated voting.',
+    );
+
+    let totalVotingPower = BigInt(0);
+    let manualVotingPower = BigInt(0);
+    let automatedVotingPower = BigInt(0);
+
+    accounts.forEach(account => {
+      if (options.shouldIncludeAccount && !options.shouldIncludeAccount(account)) {
+        return;
+      }
+
+      const power =
+        account.earningPower > BigInt(0) ? account.earningPower : account.votingPower;
+      const normalizedDelegatee = validateAndParseAddress(account.delegatee);
+      const normalizedAccount = validateAndParseAddress(account.account);
+      const hasConduitMatch = conduitAddresses.has(normalizedDelegatee.toLowerCase());
+      const looksDelegatedToThirdParty =
+        normalizedDelegatee !== ADDRESS_ZERO &&
+        normalizedDelegatee !== normalizedAccount;
+      const isAutomated =
+        hasConduitMatch ||
+        (options.treatUnknownDelegateesAsAutomated === true &&
+          looksDelegatedToThirdParty);
+
+      totalVotingPower += power;
+
+      if (isAutomated) {
+        automatedVotingPower += power;
+        return;
+      }
+
+      manualVotingPower += power;
+    });
+
+    return {
+      totalVotingPower,
+      manualVotingPower,
+      automatedVotingPower,
+    };
+  }
+
+  /**
    * Returns true if the provided last-voted timestamp falls within the current
-   * epoch.
+   * epoch. This is only a timestamp comparison and should not be used as a full
+   * current vote status check on its own.
    * @param epochDetails derived epoch details for the current epoch
    * @param lastVotedTimestamp optional last-voted timestamp to compare
    */
   public static hasVotedForEpoch(
     epochDetails: EpochDetails,
-    lastVotedTimestamp?: BigintIsh,
+    lastVotedTimestamp?: BigintIsh | bigint,
   ): boolean {
     if (lastVotedTimestamp === undefined) {
       return false;
