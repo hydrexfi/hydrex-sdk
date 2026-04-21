@@ -71,6 +71,8 @@ export interface VeNFTAutomationHistoryEntry {
   recipient: string;
   distributed: VeNFTAutomationDistribution[];
   totalUsd: number;
+  /** True when this job was executed by a veMaxi conduit (Anchor Club). */
+  isVeMaxi: boolean;
 }
 
 export interface VeNFTAutomationHistoryByToken {
@@ -235,6 +237,7 @@ export abstract class AccountAutomation {
       recipient: unknown;
       distributed: unknown;
       totalUsd: unknown;
+      isVeMaxi: unknown;
     };
 
     return {
@@ -248,6 +251,7 @@ export abstract class AccountAutomation {
         ? entry.distributed.map(AccountAutomation.normalizeAutomationHistoryDistribution)
         : [],
       totalUsd: Number(entry.totalUsd),
+      isVeMaxi: Boolean(entry.isVeMaxi),
     };
   }
 
