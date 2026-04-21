@@ -1,5 +1,118 @@
 export const veTokenLensABI = [
   {
+    inputs: [{ internalType: 'address', name: '_user', type: 'address' }],
+    name: 'getNFTFromAddress',
+    outputs: [
+      {
+        components: [
+          { internalType: 'uint8', name: 'decimals', type: 'uint8' },
+          { internalType: 'bool', name: 'voted', type: 'bool' },
+          { internalType: 'uint256', name: 'attachments', type: 'uint256' },
+          { internalType: 'uint256', name: 'id', type: 'uint256' },
+          { internalType: 'uint128', name: 'amount', type: 'uint128' },
+          { internalType: 'uint256', name: 'voting_amount', type: 'uint256' },
+          { internalType: 'uint256', name: 'earning_power', type: 'uint256' },
+          { internalType: 'uint256', name: 'rebase_amount', type: 'uint256' },
+          { internalType: 'uint256', name: 'lockEnd', type: 'uint256' },
+          { internalType: 'uint256', name: 'vote_ts', type: 'uint256' },
+          {
+            components: [
+              { internalType: 'address', name: 'pair', type: 'address' },
+              { internalType: 'uint256', name: 'weight', type: 'uint256' },
+            ],
+            internalType: 'struct veNFTAPIHydrex.pairVotes[]',
+            name: 'votes',
+            type: 'tuple[]',
+          },
+          { internalType: 'address', name: 'account', type: 'address' },
+          { internalType: 'address', name: 'delegatee', type: 'address' },
+          { internalType: 'address', name: 'token', type: 'address' },
+          { internalType: 'string', name: 'tokenSymbol', type: 'string' },
+          { internalType: 'uint256', name: 'tokenDecimals', type: 'uint256' },
+        ],
+        internalType: 'struct veNFTAPIHydrex.veNFT[]',
+        name: 'venft',
+        type: 'tuple[]',
+      },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'uint256', name: 'id', type: 'uint256' }],
+    name: 'getNFTFromId',
+    outputs: [
+      {
+        components: [
+          { internalType: 'uint8', name: 'decimals', type: 'uint8' },
+          { internalType: 'bool', name: 'voted', type: 'bool' },
+          { internalType: 'uint256', name: 'attachments', type: 'uint256' },
+          { internalType: 'uint256', name: 'id', type: 'uint256' },
+          { internalType: 'uint128', name: 'amount', type: 'uint128' },
+          { internalType: 'uint256', name: 'voting_amount', type: 'uint256' },
+          { internalType: 'uint256', name: 'earning_power', type: 'uint256' },
+          { internalType: 'uint256', name: 'rebase_amount', type: 'uint256' },
+          { internalType: 'uint256', name: 'lockEnd', type: 'uint256' },
+          { internalType: 'uint256', name: 'vote_ts', type: 'uint256' },
+          {
+            components: [
+              { internalType: 'address', name: 'pair', type: 'address' },
+              { internalType: 'uint256', name: 'weight', type: 'uint256' },
+            ],
+            internalType: 'struct veNFTAPIHydrex.pairVotes[]',
+            name: 'votes',
+            type: 'tuple[]',
+          },
+          { internalType: 'address', name: 'account', type: 'address' },
+          { internalType: 'address', name: 'delegatee', type: 'address' },
+          { internalType: 'address', name: 'token', type: 'address' },
+          { internalType: 'string', name: 'tokenSymbol', type: 'string' },
+          { internalType: 'uint256', name: 'tokenDecimals', type: 'uint256' },
+        ],
+        internalType: 'struct veNFTAPIHydrex.veNFT',
+        name: '',
+        type: 'tuple',
+      },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'address', name: '_user', type: 'address' }],
+    name: 'getVotesFromAddress',
+    outputs: [
+      {
+        components: [
+          { internalType: 'bool', name: 'voted', type: 'bool' },
+          { internalType: 'uint256', name: 'votingPower', type: 'uint256' },
+          { internalType: 'uint256', name: 'earningPower', type: 'uint256' },
+          { internalType: 'uint256', name: 'epochVotes', type: 'uint256' },
+          { internalType: 'uint256', name: 'nextEpochVotes', type: 'uint256' },
+          {
+            internalType: 'uint256',
+            name: 'nextEarningPower',
+            type: 'uint256',
+          },
+          { internalType: 'uint256', name: 'voteTs', type: 'uint256' },
+          {
+            components: [
+              { internalType: 'address', name: 'pair', type: 'address' },
+              { internalType: 'uint256', name: 'weight', type: 'uint256' },
+            ],
+            internalType: 'struct veNFTAPIHydrex.pairVotes[]',
+            name: 'votes',
+            type: 'tuple[]',
+          },
+        ],
+        internalType: 'struct veNFTAPIHydrex.Votes',
+        name: 'votesResult',
+        type: 'tuple',
+      },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
     inputs: [
       { internalType: 'uint256', name: 'id', type: 'uint256' },
       { internalType: 'address', name: '_pair', type: 'address' },
