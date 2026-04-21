@@ -1,5 +1,6 @@
 import { Interface } from '@ethersproject/abi';
 import invariant from 'tiny-invariant';
+import warning from 'tiny-warning';
 import { voterABI } from '../abis/voter';
 import { BigintIsh } from '../types/BigIntish';
 import {
@@ -11,9 +12,8 @@ import { buildEpochDetails } from '../utils/buildEpochDetails';
 import { MethodParameters, toHex } from '../utils/calldata';
 import { toBigInt } from '../utils/toBigInt';
 import { validateAndParseAddress } from '../utils/validateAndParseAddress';
-import type { UserVoteSnapshot } from './veNFTLens';
+import type { UserVoteSnapshot, VeNFTAccount } from './veNFTLens';
 import { ADDRESS_ZERO } from '../constants/constants';
-import type { VeNFTAccount } from './veNFTLens';
 
 export interface VoteOptions {
   /**
@@ -62,6 +62,12 @@ export interface UserVotePowerBreakdown {
 export interface VotePowerBreakdownOptions {
   conduitAddresses?: string[];
   treatUnknownDelegateesAsAutomated?: boolean;
+  /**
+   * Optional predicate to exclude specific accounts from the power totals.
+   * Use this to replicate app-layer filtering — for example, skipping fresh
+   * veNFTs that have not yet reached their reward start time.
+   */
+  shouldIncludeAccount?: (account: VeNFTAccount) => boolean;
 }
 
 /**
@@ -439,11 +445,23 @@ export abstract class Voter {
         validateAndParseAddress(address).toLowerCase(),
       ),
     );
+
+    warning(
+      conduitAddresses.size > 0 || options.treatUnknownDelegateesAsAutomated === true,
+      'getVotePowerBreakdown: no conduitAddresses or treatUnknownDelegateesAsAutomated ' +
+        'provided. All voting power will be treated as manual; needsToVote may be ' +
+        'incorrect for wallets with automated voting.',
+    );
+
     let totalVotingPower = BigInt(0);
     let manualVotingPower = BigInt(0);
     let automatedVotingPower = BigInt(0);
 
     accounts.forEach(account => {
+      if (options.shouldIncludeAccount && !options.shouldIncludeAccount(account)) {
+        return;
+      }
+
       const power =
         account.earningPower > BigInt(0) ? account.earningPower : account.votingPower;
       const normalizedDelegatee = validateAndParseAddress(account.delegatee);

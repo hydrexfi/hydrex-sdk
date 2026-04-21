@@ -64,6 +64,13 @@ export interface VeNFTAccountsByAddress {
   accounts: VeNFTAccount[];
 }
 
+/**
+ * Wallet-level vote snapshot from VeTokenLens.getVotesFromAddress.
+ *
+ * This aggregates across all of a wallet's veNFTs on-chain and includes
+ * next-epoch projection fields that are only available at the wallet level.
+ * Use getUserVoteSnapshot to obtain this type.
+ */
 export interface UserVoteSnapshot {
   voted: boolean;
   votingPower: string;
@@ -76,6 +83,27 @@ export interface UserVoteSnapshot {
   rawNextEpochVotes: bigint;
   nextEarningPower: string;
   rawNextEarningPower: bigint;
+  voteTs: number;
+  rawVoteTs: bigint;
+  votes: SnapshotVote[];
+}
+
+/**
+ * Per-token vote snapshot from VeTokenLens.getNFTFromId.
+ *
+ * Covers one specific veNFT rather than the wallet aggregate. Next-epoch
+ * projection fields are not available from this source and are intentionally
+ * absent — use UserVoteSnapshot when you need them.
+ * Use getUserVoteSnapshotByTokenId to obtain this type.
+ */
+export interface VeNFTTokenSnapshot {
+  voted: boolean;
+  votingPower: string;
+  rawVotingPower: bigint;
+  earningPower: string;
+  rawEarningPower: bigint;
+  epochVotes: string;
+  rawEpochVotes: bigint;
   voteTs: number;
   rawVoteTs: bigint;
   votes: SnapshotVote[];
@@ -219,7 +247,7 @@ export abstract class VeNFTLens {
   public static async getUserVoteSnapshotByTokenId(
     tokenId: BigintIsh,
     readContract: ReadContractFunction,
-  ): Promise<UserVoteSnapshot> {
+  ): Promise<VeNFTTokenSnapshot> {
     const result = await readContract({
       functionName: 'getNFTFromId',
       args: [toBigInt(tokenId)],
@@ -360,16 +388,18 @@ export abstract class VeNFTLens {
    */
   private static parseUserVoteSnapshotFromAccount(
     account: unknown,
-  ): UserVoteSnapshot {
+  ): VeNFTTokenSnapshot {
     const rawAccount = account as {
       voted: unknown;
       voting_amount: unknown;
-      earning_power: unknown;
       vote_ts: unknown;
       votes: unknown;
     };
+    // voting_amount is the per-NFT equivalent of epochVotes from the wallet-level
+    // snapshot. earningPower is derived as voting_amount × 1.3, matching the
+    // same derivation used in parseUserVoteSnapshot and the frontend.
     const rawVotingPower = toBigInt(rawAccount.voting_amount);
-    const rawEarningPower = toBigInt(rawAccount.earning_power);
+    const rawEarningPower = (rawVotingPower * BigInt(13)) / BigInt(10);
     const rawVoteTs = toBigInt(rawAccount.vote_ts);
     const parsedVotes = Array.isArray(rawAccount.votes)
       ? rawAccount.votes.map(vote => VeNFTLens.parseSnapshotVote(vote))
@@ -387,10 +417,6 @@ export abstract class VeNFTLens {
       rawEarningPower,
       epochVotes: formatUnits(rawVotingPower, 18),
       rawEpochVotes: rawVotingPower,
-      nextEpochVotes: formatUnits(rawVotingPower, 18),
-      rawNextEpochVotes: rawVotingPower,
-      nextEarningPower: formatUnits(rawEarningPower, 18),
-      rawNextEarningPower: rawEarningPower,
       voteTs: Number(rawVoteTs),
       rawVoteTs,
       votes: parsedVotes.map(vote => ({
