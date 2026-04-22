@@ -1,6 +1,23 @@
 export const veTokenABI = [
   {
     inputs: [
+      { internalType: 'uint256', name: '_from', type: 'uint256' },
+      { internalType: 'uint256', name: '_to', type: 'uint256' },
+    ],
+    name: 'merge',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'totalNftsMinted',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [
       { internalType: 'address', name: 'operator', type: 'address' },
       { internalType: 'bool', name: 'approved', type: 'bool' },
     ],
