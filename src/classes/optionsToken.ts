@@ -147,6 +147,17 @@ export abstract class OptionsToken {
    * This wraps the options-token `exercise(...)` function, which converts
    * oHYDX into liquid HYDX and requires a payment token such as USDC.
    *
+   * **Caller responsibility — ERC-20 approval:** before submitting this
+   * transaction, the caller must ensure the payment token (e.g. USDC) has a
+   * sufficient allowance granted to the options token contract. Use
+   * `getExerciseQuote` to determine the required amount and submit a standard
+   * ERC-20 `approve` transaction first if the current allowance is
+   * insufficient.
+   *
+   * **Recipient:** `recipient` is required and must be set explicitly. There
+   * is no silent fallback — omitting or zeroing it would direct the output to
+   * an unintended address.
+   *
    * @param options oHYDX amount, max payment amount, recipient, and deadline
    */
   public static exerciseToLiquidHydxCallParameters(
@@ -173,7 +184,13 @@ export abstract class OptionsToken {
    * Builds calldata for the protocol-account exercise path.
    *
    * This wraps the options-token `exerciseVe(...)` function, which converts
-   * oHYDX into a new locked protocol account.
+   * oHYDX into a new locked protocol account. The contract returns the newly
+   * minted `nftId` as a `uint256`, which callers can decode from the
+   * transaction receipt.
+   *
+   * **Recipient:** `recipient` is required and must be set explicitly. There
+   * is no silent fallback — omitting or zeroing it would direct the output to
+   * an unintended address.
    *
    * @param options oHYDX amount and recipient for the newly created veNFT
    */
@@ -193,18 +210,28 @@ export abstract class OptionsToken {
   }
 
   /**
-   * Builds the two-call flow to create a new protocol account from oHYDX, then
-   * merge that new veNFT into an existing protocol account.
+   * Builds the two-transaction flow to create a new protocol account from
+   * oHYDX, then merge that new veNFT into an existing protocol account.
    *
-   * The caller must supply `nextVeTokenId`, which is the veNFT id that will be
-   * minted by the first `exerciseVe(...)` call. Use `getNextVeTokenId(...)`
-   * immediately before building this bundle when possible.
+   * Returns an array of two `MethodParameters` objects that must be submitted
+   * as separate, ordered transactions:
+   *   1. `exerciseVe(amount, recipient)` — mints a new veNFT.
+   *   2. `merge(nextVeTokenId, targetTokenId)` — merges the new veNFT into the
+   *      target.
+   *
+   * **Race condition:** the caller must supply `nextVeTokenId`, which is the
+   * veNFT id that will be minted by the first transaction. Use
+   * `getNextVeTokenId(...)` immediately before building this bundle. If another
+   * user mints a veNFT between the read and the submit, `nextVeTokenId` will be
+   * stale and the merge will target the wrong token. Alternatively, decode the
+   * `nftId` return value from the `exerciseVe` receipt and pass it directly to
+   * a standalone `merge` call to eliminate the race entirely.
    *
    * @param options oHYDX amount, recipient, new veNFT id, and merge target id
    */
   public static exerciseToProtocolAccountAndMergeCallParameters(
     options: ExerciseToProtocolAccountAndMergeOptions,
-  ): MethodParameters {
+  ): MethodParameters[] {
     const exerciseCall = OptionsToken.exerciseToProtocolAccountCallParameters({
       amount: options.amount,
       recipient: options.recipient,
@@ -215,9 +242,9 @@ export abstract class OptionsToken {
       [toBigInt(options.nextVeTokenId), toBigInt(options.targetTokenId)],
     );
 
-    return {
-      calldata: [exerciseCall.calldata as string, mergeCalldata],
-      value: toHex(0),
-    };
+    return [
+      exerciseCall,
+      { calldata: mergeCalldata, value: toHex(0) },
+    ];
   }
 }

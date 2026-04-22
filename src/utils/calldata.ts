@@ -6,7 +6,9 @@ import JSBI from 'jsbi';
  */
 export interface MethodParameters {
   /**
-   * The hex encoded calldata to perform the given operation
+   * The hex encoded calldata to perform the given operation.
+   * A single call produces a `string`; multi-call bundles (e.g. SwapRouter)
+   * produce a `string[]` of ordered calldatas.
    */
   calldata: string | string[];
   /**
