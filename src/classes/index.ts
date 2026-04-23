@@ -9,3 +9,4 @@ export * from './selfPermit';
 export * from './voter';
 export * from './veNFTClaims';
 export * from './veNFTLens';
+export * from './optionsToken';

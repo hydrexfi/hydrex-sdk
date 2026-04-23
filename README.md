@@ -13,7 +13,10 @@ The Hydrex SDK provides tools to:
 - Work with ERC4626 "boosted" token vaults
 - Stake and unstake LP tokens via gauges
 - Vote on gauge weights via the Voter contract
+- Read veNFT vote snapshots, power breakdowns, and vote status
 - Claim gauge rewards, veNFT fees, and bribes
+- Track veNFT automation history via the protocol API
+- Convert oHYDX option tokens into liquid HYDX or locked protocol accounts
 - Interact with Ichi single-sided vaults
 
 ## Installation
@@ -26,12 +29,10 @@ yarn add @hydrexfi/hydrex-sdk
 
 ## Supported Networks
 
-
 | Network      | Chain ID | Status  | Pool Deployer                                |
 | ------------ | -------- | ------- | -------------------------------------------- |
 | Base         | 8453     | Mainnet | `0x1595A5D101d69D2a2bAB2976839cC8eeEb13Ab94` |
 | Base Sepolia | 84532    | Testnet | `0x9cb57c3E31D50fa5c273eC0a5A51cF9cb3B127A7` |
-
 
 ## Quick Start
 
@@ -239,7 +240,6 @@ const { calldata, value } = SwapRouter.swapCallParameters(trade, {
 
 #### `Trade` factories
 
-
 | Factory                                                        | Description                                          |
 | -------------------------------------------------------------- | ---------------------------------------------------- |
 | `Trade.exactIn(route, amountIn)`                               | Async; simulates the output amount through tick math |
@@ -250,7 +250,6 @@ const { calldata, value } = SwapRouter.swapCallParameters(trade, {
 | `Trade.createUncheckedTradeWithMultipleRoutes(options)`        | Sync multi-route                                     |
 | `Trade.bestTradeExactIn(pools, amountIn, tokenOut, options?)`  | Finds best route for exact-in                        |
 | `Trade.bestTradeExactOut(pools, tokenIn, amountOut, options?)` | Finds best route for exact-out                       |
-
 
 ---
 
@@ -469,6 +468,44 @@ const totalWeight: bigint = await Voter.getTotalWeight(readContract);
 const weight: bigint = await Voter.getWeight('0xPool', readContract);
 ```
 
+#### Vote status and power breakdown
+
+`getUserVoteStatus` derives a compact vote status summary from a `UserVoteSnapshot` (see [VeNFTLens](#venft-lens-reads)):
+
+```typescript
+import { Voter, UserVoteStatus, UserVotePowerBreakdown } from '@hydrexfi/hydrex-sdk';
+
+// Snapshot from VeNFTLens.getUserVoteSnapshot
+const snapshot = await VeNFTLens.getUserVoteSnapshot('0xUser', readContract);
+const epoch = await Voter.getEpochDetails(readContracts);
+
+// Optional: supply a power breakdown so automated power is excluded from
+// needsToVote. Without it, all power is treated as manual.
+const breakdown: UserVotePowerBreakdown = Voter.getVotePowerBreakdown(accounts, {
+  conduitAddresses: ['0xConduit1'],
+});
+
+const status: UserVoteStatus = Voter.getUserVoteStatus(snapshot, epoch, breakdown);
+// status.needsToVote             — true if manual power > 0 and no vote this epoch
+// status.hasVotingPower          — total power > 0
+// status.hasVotedForCurrentEpoch — vote ts falls within current epoch
+// status.totalVotingPower        — bigint
+// status.manualVotingPower       — bigint
+// status.automatedVotingPower    — bigint
+```
+
+`getVotePowerBreakdown` splits raw veNFT account power into manual vs automated:
+
+```typescript
+// accounts from VeNFTLens.getAccountsByAddress
+const breakdown = Voter.getVotePowerBreakdown(accounts, {
+  conduitAddresses: ['0xConduit1', '0xConduit2'], // known conduit addresses
+  // treatUnknownDelegateesAsAutomated: true,     // fallback heuristic
+  // shouldIncludeAccount: (acct) => !isFresh(acct), // filter fresh veNFTs
+});
+// breakdown.totalVotingPower, .manualVotingPower, .automatedVotingPower
+```
+
 ---
 
 ### Claiming Rewards
@@ -616,6 +653,53 @@ const { calldata: briberCalldata } = VeNFTClaims.claimBribesCallParameters({
 });
 ```
 
+#### VeNFT lens reads
+
+`VeNFTLens` also exposes vote snapshots and raw account reads from `VeTokenLens`.
+
+**Wallet-level vote snapshot** (`UserVoteSnapshot`) — aggregates all of a wallet's veNFTs and includes next-epoch projections:
+
+```typescript
+import { VeNFTLens, UserVoteSnapshot } from '@hydrexfi/hydrex-sdk';
+
+// readContract must be bound to VE_TOKEN_LENS_ADDRESSES[chainId]
+const snapshot: UserVoteSnapshot = await VeNFTLens.getUserVoteSnapshot(
+  '0xOwnerWallet',
+  readContract,
+);
+// snapshot.voted, .votingPower, .earningPower, .epochVotes,
+// .nextEpochVotes, .nextEarningPower, .voteTs, .votes
+```
+
+**Per-token vote snapshot** (`VeNFTTokenSnapshot`) — covers one specific veNFT; next-epoch projections are not available from this source:
+
+```typescript
+import { VeNFTLens, VeNFTTokenSnapshot } from '@hydrexfi/hydrex-sdk';
+
+const snapshot: VeNFTTokenSnapshot = await VeNFTLens.getUserVoteSnapshotByTokenId(
+  42n,
+  readContract,
+);
+// snapshot.voted, .votingPower, .earningPower, .epochVotes, .voteTs, .votes
+```
+
+**veNFT account reads** — raw normalized lens views without app-side enrichments:
+
+```typescript
+import { VeNFTLens, VeNFTAccount, VeNFTAccountsByAddress } from '@hydrexfi/hydrex-sdk';
+
+// All accounts for a wallet
+const result: VeNFTAccountsByAddress = await VeNFTLens.getAccountsByAddress(
+  '0xOwnerWallet',
+  readContract,
+);
+// result.owner, result.balance, result.accounts (VeNFTAccount[])
+
+// Single account by token id
+const account: VeNFTAccount = await VeNFTLens.getAccountById(42n, readContract);
+// account.tokenId, .votingPower, .earningPower, .delegatee, .account, .lockEnd, ...
+```
+
 ---
 
 ### Account Automation
@@ -732,6 +816,111 @@ const { calldata } = AccountAutomation.approveOptionsTokenCallParameters({
   conduitAddress: '0xLpConduitAddress',
   // amount: 0,  // pass to revoke
 });
+```
+
+#### veNFT automation history
+
+`AccountAutomation` fetches completed automation job history from the protocol API (`/conduits/user-jobs/:owner`). History is grouped by token id. Pass a `fetcher` when the global `fetch` is unavailable (e.g. Node.js < 18).
+
+```typescript
+import {
+  AccountAutomation,
+  VeNFTAutomationHistoryByToken,
+  VeNFTAutomationHistoryEntry,
+} from '@hydrexfi/hydrex-sdk';
+
+const options = {
+  baseUrl: 'https://api.hydrex.fi',
+  // fetcher: nodeFetch,  // optional; defaults to global fetch
+};
+
+// All history for a wallet, grouped by token id
+const history: VeNFTAutomationHistoryByToken =
+  await AccountAutomation.getAutomationHistoryByOwner('0xOwnerWallet', options);
+
+for (const [tokenId, entries] of Object.entries(history.historyByTokenId)) {
+  entries.forEach((entry: VeNFTAutomationHistoryEntry) => {
+    // entry.tokenId, .transactionHash, .timestamp, .recipient
+    // entry.distributed — array of { token, amountRaw, amount, symbol, usd }
+    // entry.totalUsd
+    // entry.isVeMaxi — true when executed by a veMaxi (Anchor Club) conduit
+  });
+}
+
+// History for a single token id
+const singleHistory: VeNFTAutomationHistoryByToken =
+  await AccountAutomation.getAutomationHistoryByTokenId('0xOwnerWallet', 42n, options);
+```
+
+---
+
+### oHYDX Conversions (OptionsToken)
+
+`OptionsToken` provides read helpers and calldata builders for converting oHYDX option tokens into either liquid HYDX or locked protocol accounts (veNFTs). All calldata targets the options token contract address unless noted.
+
+#### Read helpers
+
+```typescript
+import { OptionsToken, OptionsTokenInfo, ExerciseQuote } from '@hydrexfi/hydrex-sdk';
+
+// Read current options token configuration
+// readContracts must be bound to the options token contract
+const info: OptionsTokenInfo = await OptionsToken.getOptionsTokenInfo(readContracts);
+// info.discount, .twapSeconds, .paymentToken, .underlyingToken, .isPaused
+
+// Quote the payment cost for a given oHYDX amount
+const quote: ExerciseQuote = await OptionsToken.getExerciseQuote(
+  '1000000000000000000', // 1 oHYDX (raw)
+  readContracts,
+);
+// quote.amount, .paymentAmount, .twapAmount, .paymentToken
+
+// Read the next veNFT id (use with exerciseToProtocolAccountAndMerge)
+// readContract must be bound to the veToken contract
+const nextId: bigint = await OptionsToken.getNextVeTokenId(readContract);
+```
+
+#### Write: calldata builders
+
+**Exercise to liquid HYDX** — converts oHYDX into liquid HYDX. The caller must approve the payment token (e.g. USDC) to the options token contract first; use `getExerciseQuote` to determine the required amount.
+
+```typescript
+const { calldata } = OptionsToken.exerciseToLiquidHydxCallParameters({
+  amount: '1000000000000000000',      // oHYDX amount (raw)
+  maxPaymentAmount: quote.paymentAmount,
+  recipient: '0xYourWallet',
+  deadlineSeconds: 600,               // optional, defaults to 10 min
+});
+// Send tx to the options token contract
+```
+
+**Exercise to protocol account** — converts oHYDX into a new locked veNFT. The contract returns the minted `nftId` as a `uint256` in the receipt.
+
+```typescript
+const { calldata } = OptionsToken.exerciseToProtocolAccountCallParameters({
+  amount: '1000000000000000000',
+  recipient: '0xYourWallet',
+});
+// Send tx to the options token contract
+```
+
+**Exercise to protocol account + merge** — mints a new veNFT from oHYDX and immediately merges it into an existing veNFT. Returns two `MethodParameters` objects that must be submitted as sequential transactions:
+
+```typescript
+// Read the expected next token id immediately before building to minimise
+// the race window. Alternatively, decode the nftId from the first receipt.
+const nextVeTokenId = await OptionsToken.getNextVeTokenId(veTokenReadContract);
+
+const [exerciseCall, mergeCall] =
+  OptionsToken.exerciseToProtocolAccountAndMergeCallParameters({
+    amount: '1000000000000000000',
+    recipient: '0xYourWallet',
+    nextVeTokenId,        // id that will be minted by tx 1
+    targetTokenId: 42n,   // existing veNFT to merge into
+  });
+
+// tx 1: exerciseCall  → options token contract
+// tx 2: mergeCall     → veToken contract
 ```
 
 ---
@@ -953,7 +1142,9 @@ import {
   hydrexSwapRouterABI,
   ichiVaultABI,
   ichiVaultDepositGuardABI,
+  optionsTokenABI,
   selfPermitABI,
+  veTokenABI,
   veTokenLensABI,
   voterABI,
 } from '@hydrexfi/hydrex-sdk';
