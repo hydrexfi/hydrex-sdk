@@ -6,6 +6,7 @@ export * from './ichiVault';
 export * from './ichiVaultDepositGuard';
 export * from './merklDistributor';
 export * from './optionsToken';
+export * from './partnerEscrow';
 export * from './selfPermit';
 export * from './veTokenLens';
 export * from './veToken';
