@@ -13,6 +13,7 @@ The Hydrex SDK provides tools to:
 - Work with ERC4626 "boosted" token vaults
 - Stake and unstake LP tokens via gauges
 - Vote on gauge weights via the Voter contract
+- Interact with partner escrow contracts (vote, delegate, claim rewards on a custodied veNFT)
 - Read veNFT vote snapshots, power breakdowns, and vote status
 - Claim gauge rewards, veNFT fees, and bribes
 - Track veNFT automation history via the protocol API
@@ -504,6 +505,77 @@ const breakdown = Voter.getVotePowerBreakdown(accounts, {
   // shouldIncludeAccount: (acct) => !isFresh(acct), // filter fresh veNFTs
 });
 // breakdown.totalVotingPower, .manualVotingPower, .automatedVotingPower
+```
+
+---
+
+### Partner Escrow
+
+`PartnerEscrow` provides calldata builders for integration partners who hold a veNFT inside a dedicated escrow contract. Rather than controlling the veNFT directly, a partner interacts exclusively through their escrow, which enforces partner-level access controls and reward routing.
+
+All methods are static. Every transaction produced here must be sent to the **partner's own PartnerEscrow contract address** (not the voter or veToken contract).
+
+#### Vote through the escrow
+
+The calldata shape is identical to `Voter.voteCallParameters` — only the target address differs.
+
+```typescript
+import { PartnerEscrow } from '@hydrexfi/hydrex-sdk';
+
+const { calldata } = PartnerEscrow.voteCallParameters({
+  pools: ['0xPool1', '0xPool2'],
+  weights: [6000, 4000], // relative proportions — treated as 60% / 40%
+});
+
+// Send tx to your PartnerEscrow contract address
+```
+
+#### Delegate voting power
+
+Delegates the escrowed veNFT's voting power to another address.
+
+```typescript
+const { calldata } = PartnerEscrow.delegateCallParameters({
+  delegatee: '0xDelegateeAddress',
+});
+```
+
+#### Approve or revoke a conduit
+
+Grants or revokes a conduit contract the ability to act on the escrowed veNFT.
+
+```typescript
+// Approve
+const { calldata } = PartnerEscrow.setConduitApprovalForEscrowedTokenCallParameters({
+  conduitAddress: '0xConduitAddress',
+  approve: true,
+});
+
+// Revoke
+const { calldata } = PartnerEscrow.setConduitApprovalForEscrowedTokenCallParameters({
+  conduitAddress: '0xConduitAddress',
+  approve: false,
+});
+```
+
+#### Claim fee and bribe rewards
+
+Forwards fee distributor and bribe rewards to the partner. At least one fee or bribe address must be provided.
+
+```typescript
+const { calldata } = PartnerEscrow.claimRewardsCallParameters({
+  feeAddresses: ['0xFeeDistributor1'],
+  bribeAddresses: ['0xBribeContract1'],
+  claimTokens: ['0xRewardToken1'],
+});
+```
+
+#### Claim the escrowed veNFT
+
+Releases the escrowed veNFT back to the partner once the vesting period has completed.
+
+```typescript
+const { calldata } = PartnerEscrow.claimVeTokenCallParameters();
 ```
 
 ---
@@ -1143,6 +1215,7 @@ import {
   ichiVaultABI,
   ichiVaultDepositGuardABI,
   optionsTokenABI,
+  partnerEscrowABI,
   selfPermitABI,
   veTokenABI,
   veTokenLensABI,
