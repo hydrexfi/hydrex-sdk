@@ -56,4 +56,4 @@ export const partnerEscrowABI = [
     stateMutability: 'nonpayable',
     type: 'function',
   },
-] as const;
+];

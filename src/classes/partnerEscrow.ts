@@ -62,9 +62,7 @@ export interface PartnerEscrowClaimRewardsOptions {
  * emergency functions are intentionally excluded from this helper surface.
  */
 export abstract class PartnerEscrow {
-  public static INTERFACE: Interface = new Interface(
-    partnerEscrowABI as unknown as any[],
-  );
+  public static INTERFACE: Interface = new Interface(partnerEscrowABI);
 
   private constructor() {}
 
@@ -141,6 +139,11 @@ export abstract class PartnerEscrow {
   public static claimRewardsCallParameters(
     options: PartnerEscrowClaimRewardsOptions,
   ): MethodParameters {
+    invariant(
+      options.feeAddresses.length > 0 || options.bribeAddresses.length > 0,
+      'EMPTY_CLAIM',
+    );
+
     const feeAddresses = options.feeAddresses.map(address =>
       validateAndParseAddress(address),
     );
