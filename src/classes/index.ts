@@ -4,6 +4,7 @@ export * from './ichiVault';
 export * from './ichiVaultDepositGuard';
 export * from './claimRewards';
 export * from './nonfungiblePositionManager';
+export * from './partnerEscrow';
 export * from './swapRouter';
 export * from './selfPermit';
 export * from './voter';
